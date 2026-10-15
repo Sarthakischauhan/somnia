@@ -39,13 +39,14 @@ class _RawEvent(BaseModel):
     payload: dict[str, JsonValue]
 
 
-def sessions_needing_dream(conn: Conn) -> list[SessionToDream]:
+def sessions_needing_dream(conn: Conn, user_id: UUID) -> list[SessionToDream]:
     with conn.cursor(row_factory=class_row(SessionToDream)) as cur:
         cur.execute(
             "select s.id, s.user_id, s.repo, s.branch, s.git_ref, s.dreamed_through_seq"
-            " from public.sessions s where exists (select 1 from public.events e"
-            "   where e.session_id = s.id and e.seq > s.dreamed_through_seq)"
-            " order by s.started_at for update of s skip locked"
+            " from public.sessions s where s.user_id = %s and exists (select 1"
+            "   from public.events e where e.session_id = s.id and e.seq > s.dreamed_through_seq)"
+            " order by s.started_at for update of s skip locked",
+            (user_id,),
         )
         return cur.fetchall()
 

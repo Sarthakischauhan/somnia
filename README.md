@@ -99,7 +99,9 @@ the migration when the extension is enabled). Per session with new events:
 3. *decay*: memories idle for `decay_after_days` get `confidence × decay_factor` (floor
    `min_confidence`).
 
-Nothing is hard-deleted. Each run is logged in `dream_runs` with counts or the error.
+Nothing is hard-deleted. Each run is processed per user and logged as one `dream_runs` row per
+user with that user's counts (or the error), wall-clock `started_at`/`finished_at`, and the logical
+`logical_now` used for decay.
 
 ## API reference
 
@@ -170,8 +172,11 @@ token is just a device token for that user, so the UI can only see and curate th
 | `GET /v1/admin/checkpoints/latest` | – | latest checkpoint per repo/branch |
 | `GET /v1/admin/tasks` | `status` (repeatable), `limit` | `{counts: {queued, running, done, failed}, items}` |
 
-Archived memories are excluded from retrieval, dedupe and decay. Scheduled (global) dream runs
-are visible to every user; manual runs are owned by the requester.
+Archived memories are excluded from retrieval, dedupe and decay. Every `dream_runs` row with stats
+belongs to one user (RLS: owner-only): a scheduled or pg_cron run writes one row per user it
+processed (`parent_run_id` links fan-out rows to a global request marker, which carries no stats,
+enforced by a CHECK). `started_at`/`finished_at` are wall-clock; `logical_now` is the time used for
+decay.
 
 ```bash
 cd web && cp .env.example .env.local && npm ci
@@ -232,7 +237,6 @@ it afterwards. Without `SOMNIA_TEST_DATABASE_URL` they are skipped locally and f
 ## Known gaps
 
 - Admin UI has no separate admin role: it acts as one user via a device token (RLS-scoped).
-- Global scheduled dream runs show aggregate counts across all users to every user.
 
 - Agent tasks use the table + `SKIP LOCKED` backend; a pgmq backend is not implemented yet.
 - tiktoken downloads each encoding once on first use (cached under `TIKTOKEN_CACHE_DIR`);

@@ -37,7 +37,7 @@ def _run_session(client: TestClient, device: Device, messages: list[str]) -> str
     return str(session["id"])
 
 
-def _dream(conn: Conn, offset_days: float = 0) -> uuid.UUID:
+def _dream(conn: Conn, offset_days: float = 0) -> list[uuid.UUID]:
     return run_dream(
         conn, FakeLlm(), FakeEmbedder(), POLICY, FIXED_NOW + timedelta(days=offset_days)
     )
@@ -119,7 +119,7 @@ def test_dream_merges_supersedes_and_keeps_provenance(
         ("succeeded", 1, 0, 1, 0, 1),
         ("succeeded", 1, 0, 0, 1, 1),
     ]
-    assert runs[0][0] == run1
+    assert [runs[0][0]] == run1
 
     # Idempotent: nothing new to consolidate.
     _dream(service_conn, 3)
@@ -171,3 +171,101 @@ def test_requested_dream_run_is_claimed(service_conn: Conn) -> None:
         "select status, trigger from public.dream_runs where id = %s", (claimed,)
     ).fetchone()
     assert status == ("succeeded", "manual")
+
+
+def _user_runs(conn: Conn, user_id: uuid.UUID) -> list[tuple[object, ...]]:
+    return [
+        tuple(r)
+        for r in conn.execute(
+            "select sessions_processed, memories_added, checkpoints_created from public.dream_runs"
+            " where user_id = %s order by started_at",
+            (user_id,),
+        ).fetchall()
+    ]
+
+
+def test_scheduled_run_writes_one_row_per_user_and_rls_hides_others(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    from tests.conftest import make_device
+
+    other = make_device(service_conn, "user-b")
+    _run_session(client, device, ["a1", "remember: user a uses poetry"])
+    _run_session(client, device, ["a2", "remember: user a deploys to fly"])
+    _run_session(client, other, ["b1", "remember: user b uses bazel"])
+
+    ids = _dream(service_conn)
+    assert len(ids) == 2
+    assert _user_runs(service_conn, device.user_id) == [(2, 2, 2)]
+    assert _user_runs(service_conn, other.user_id) == [(1, 1, 1)]
+    row = service_conn.execute(
+        "select count(*) from public.dream_runs where user_id is null"
+    ).fetchone()
+    assert row is not None
+    assert row[0] == 0
+
+    a_view = client.get("/v1/admin/dream-runs", headers=device.headers).json()
+    b_view = client.get("/v1/admin/dream-runs", headers=other.headers).json()
+    assert [(r["sessions_processed"], r["user_id"]) for r in a_view] == [(2, str(device.user_id))]
+    assert [(r["sessions_processed"], r["user_id"]) for r in b_view] == [(1, str(other.user_id))]
+    assert {r["id"] for r in a_view}.isdisjoint({r["id"] for r in b_view})
+
+
+def test_global_cron_request_fans_out_per_user_and_marker_has_no_stats(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    from somnia.dreaming.run_log import claim_requested_run
+    from tests.conftest import make_device
+
+    other = make_device(service_conn, "user-b")
+    _run_session(client, device, ["a", "remember: a fact"])
+    _run_session(client, other, ["b", "remember: b fact"])
+    service_conn.execute("select public.somnia_request_dream('pg_cron')")
+    marker = claim_requested_run(service_conn)
+    assert marker is not None
+    ids = run_dream(service_conn, FakeLlm(), FakeEmbedder(), POLICY, FIXED_NOW, run_id=marker)
+    rows = service_conn.execute(
+        "select user_id, trigger, parent_run_id, sessions_processed from public.dream_runs"
+        " where id = any(%s) order by user_id",
+        (ids,),
+    ).fetchall()
+    assert {r[0] for r in rows} == {device.user_id, other.user_id}
+    assert all(r[1] == "pg_cron" and r[2] == marker and r[3] == 1 for r in rows)
+    mark = service_conn.execute(
+        "select status, user_id, sessions_processed, memories_added from public.dream_runs"
+        " where id = %s",
+        (marker,),
+    ).fetchone()
+    assert mark == ("succeeded", None, 0, 0)
+    for d in (device, other):
+        seen = client.get("/v1/admin/dream-runs", headers=d.headers).json()
+        assert [r["user_id"] for r in seen] == [str(d.user_id)]
+    import psycopg
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        service_conn.execute(
+            "insert into public.dream_runs (trigger, status, memories_added)"
+            " values ('schedule', 'succeeded', 3)"
+        )
+
+
+def test_run_timestamps_are_wall_clock_not_logical_now(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    _run_session(client, device, ["x", "remember: wall clock matters"])
+    logical = FIXED_NOW + timedelta(days=365)
+    (run_id,) = run_dream(service_conn, FakeLlm(), FakeEmbedder(), POLICY, logical)
+    row = service_conn.execute(
+        "select started_at, finished_at, logical_now, clock_timestamp() from public.dream_runs"
+        " where id = %s",
+        (run_id,),
+    ).fetchone()
+    assert row is not None
+    started, finished, logical_now, db_now = row
+    assert finished >= started
+    assert (finished - started).total_seconds() > 0
+    assert logical_now == logical
+    assert abs((db_now - finished).total_seconds()) < 60
+    body = client.get("/v1/admin/dream-runs", headers=device.headers).json()[0]
+    assert body["finished_at"] >= body["started_at"]
+    assert body["logical_now"] is not None

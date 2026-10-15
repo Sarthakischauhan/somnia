@@ -388,6 +388,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Logical Now */
+            logical_now: string | null;
             /** Memories Added */
             memories_added: number;
             /** Memories Decayed */
@@ -396,6 +398,8 @@ export interface components {
             memories_merged: number;
             /** Memories Superseded */
             memories_superseded: number;
+            /** Parent Run Id */
+            parent_run_id: string | null;
             /**
              * Requested At
              * Format: date-time

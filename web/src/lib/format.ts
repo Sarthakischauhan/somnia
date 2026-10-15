@@ -10,6 +10,7 @@ export function formatDateTime(value: string | null | undefined): string {
 export function formatDuration(start: string | null, end: string | null): string {
   if (!start || !end) return "—";
   const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (ms < 1) return "<1 ms";
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 

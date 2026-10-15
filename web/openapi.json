@@ -189,6 +189,18 @@
             "title": "Id",
             "type": "string"
           },
+          "logical_now": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logical Now"
+          },
           "memories_added": {
             "title": "Memories Added",
             "type": "integer"
@@ -204,6 +216,18 @@
           "memories_superseded": {
             "title": "Memories Superseded",
             "type": "integer"
+          },
+          "parent_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Run Id"
           },
           "requested_at": {
             "format": "date-time",
@@ -272,7 +296,9 @@
           "memories_merged",
           "memories_superseded",
           "memories_decayed",
-          "error"
+          "error",
+          "parent_run_id",
+          "logical_now"
         ],
         "title": "DreamRunRecord",
         "type": "object"

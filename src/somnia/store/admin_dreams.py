@@ -12,7 +12,7 @@ from somnia.db.connection import Conn
 _COLUMNS = (
     "id, user_id, trigger, status, requested_at, started_at, finished_at, sessions_processed,"
     " checkpoints_created, memories_added, memories_merged, memories_superseded,"
-    " memories_decayed, error"
+    " memories_decayed, error, parent_run_id, logical_now"
 )
 
 
@@ -31,6 +31,8 @@ class DreamRunRecord(BaseModel):
     memories_superseded: int
     memories_decayed: int
     error: str | None
+    parent_run_id: UUID | None
+    logical_now: datetime | None
 
 
 class DreamSchedule(BaseModel):

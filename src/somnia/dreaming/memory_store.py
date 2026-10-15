@@ -129,15 +129,18 @@ def supersede(
     return new_id
 
 
-def decay_unused(conn: Conn, now: datetime, after_days: float, factor: float, floor: float) -> int:
+def decay_unused(
+    conn: Conn, user_id: UUID, now: datetime, after_days: float, factor: float, floor: float
+) -> int:
     """Lower confidence of memories idle for `after_days` (since use, creation or last decay)."""
     cur = conn.execute(
         "update public.memories set confidence = greatest(%(floor)s, confidence * %(f)s),"
         " last_decayed_at = %(now)s, updated_at = %(now)s"
-        " where superseded_by is null and archived_at is null and confidence > %(floor)s"
+        " where user_id = %(u)s and superseded_by is null and archived_at is null"
+        " and confidence > %(floor)s"
         " and greatest(coalesce(last_used_at, created_at),"
         "              coalesce(last_decayed_at, '-infinity'::timestamptz))"
         "     < %(now)s - make_interval(secs => %(secs)s)",
-        {"floor": floor, "f": factor, "now": now, "secs": after_days * 86400},
+        {"u": user_id, "floor": floor, "f": factor, "now": now, "secs": after_days * 86400},
     )
     return cur.rowcount
