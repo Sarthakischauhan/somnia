@@ -30,6 +30,7 @@ class ApiSettings(BaseSettings):
     recency_half_life_days: float = Field(default=30.0, gt=0)
     default_token_budget: int = Field(default=2000, ge=1)
     token_encoding: TokenEncoding = "o200k_base"
+    dream_interval_s: float = Field(default=3600.0, gt=0)  # shown in the admin UI
     candidate_pool_factor: int = Field(default=4, ge=1)
 
 

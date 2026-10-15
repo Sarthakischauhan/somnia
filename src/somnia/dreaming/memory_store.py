@@ -39,6 +39,7 @@ def nearest_active(
         cur.execute(
             "select id, content, 1 - (embedding <=> %(v)s::extensions.vector) as similarity"
             " from public.memories where user_id = %(u)s and superseded_by is null"
+            " and archived_at is null"
             " and scope = %(scope)s and repo is not distinct from %(repo)s"
             " and branch is not distinct from %(branch)s"
             " order by embedding <=> %(v)s::extensions.vector limit 1",
@@ -133,7 +134,7 @@ def decay_unused(conn: Conn, now: datetime, after_days: float, factor: float, fl
     cur = conn.execute(
         "update public.memories set confidence = greatest(%(floor)s, confidence * %(f)s),"
         " last_decayed_at = %(now)s, updated_at = %(now)s"
-        " where superseded_by is null and confidence > %(floor)s"
+        " where superseded_by is null and archived_at is null and confidence > %(floor)s"
         " and greatest(coalesce(last_used_at, created_at),"
         "              coalesce(last_decayed_at, '-infinity'::timestamptz))"
         "     < %(now)s - make_interval(secs => %(secs)s)",

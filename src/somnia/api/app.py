@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from psycopg_pool import ConnectionPool
 
 from somnia.api.dependencies import scoped_dependency
+from somnia.api.routes_admin import build_admin_router
 from somnia.api.routes_context import build_context_router, utc_now
 from somnia.api.routes_sessions import build_sessions_router
 from somnia.api.routes_tasks import build_tasks_router
@@ -38,6 +39,7 @@ def create_app(
     scoped = scoped_dependency(pool)
     app.include_router(build_sessions_router(scoped))
     app.include_router(build_tasks_router(scoped))
+    app.include_router(build_admin_router(scoped, settings))
     app.include_router(build_context_router(scoped, embedder, settings, clock))
 
     @app.get("/healthz", tags=["ops"])

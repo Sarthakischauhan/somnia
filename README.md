@@ -139,6 +139,50 @@ curl -XPOST localhost:8000/v1/sessions/$S/events -H "Authorization: Bearer $TOKE
 curl "localhost:8000/v1/context?repo=acme/api&branch=main&token_budget=800" -H "Authorization: Bearer $TOKEN"
 ```
 
+## Admin UI (`web/`)
+
+Next.js 15 (App Router, TypeScript strict) with plain shadcn/ui components. Every page is a server
+component that calls **only** the FastAPI service through a typed client generated from the
+service's OpenAPI schema (`openapi-typescript` + `openapi-fetch`). `SOMNIA_API_URL` and
+`SOMNIA_ADMIN_TOKEN` are read server-side (`server-only` modules, no `NEXT_PUBLIC_`), so the token
+never reaches the browser. Mutations go through server actions.
+
+| Page | Shows |
+| --- | --- |
+| `/memories` | list with repo / branch / type / scope filters, content search, include superseded / archived |
+| `/memories/[id]` | provenance (`source_session_ids` → sessions), full `superseded_by` chain both ways, edit confidence, archive / restore |
+| `/dreaming` | `dream_runs` history (sessions, added, merged, superseded, decayed, duration), **Run dream now**, schedule status (worker interval, pg_cron job, last success, pending requests) |
+| `/sessions` | latest checkpoint per repo/branch, task queue counts and recent tasks |
+
+Admin endpoints use the **same per-device token and RLS scope** as the agent API: an admin
+token is just a device token for that user, so the UI can only see and curate that user's rows
+(column grants allow only `confidence`, `archived_at`, `last_used_at`, `use_count` updates).
+
+| Method & path | Body / query | Returns |
+| --- | --- | --- |
+| `GET /v1/admin/memories` | `repo, branch, type, scope, q, include_superseded, include_archived, limit, offset` | `{items: Memory[], total}` |
+| `GET /v1/admin/memories/{id}` | – | `{memory, sources: Session[], supersedes: Memory[], superseded_by_chain: Memory[]}` |
+| `PATCH /v1/admin/memories/{id}` | `{confidence?: 0..1, archived?: bool}` | memory (archive is soft: `archived_at`) |
+| `GET /v1/admin/repos` | – | `[{repo, branch}]` for filters |
+| `GET /v1/admin/dream-runs` | `limit` | `DreamRun[]` |
+| `POST /v1/admin/dream-runs` | – | `202` requested run (worker picks it up) |
+| `GET /v1/admin/dream-schedule` | – | `{pg_cron_schedule, worker_interval_s, last_run, last_success_at, pending_requests}` |
+| `GET /v1/admin/checkpoints/latest` | – | latest checkpoint per repo/branch |
+| `GET /v1/admin/tasks` | `status` (repeatable), `limit` | `{counts: {queued, running, done, failed}, items}` |
+
+Archived memories are excluded from retrieval, dedupe and decay. Scheduled (global) dream runs
+are visible to every user; manual runs are owned by the requester.
+
+```bash
+cd web && cp .env.example .env.local && npm ci
+npm run dev                                # http://localhost:3000
+# Demo data through the real API + dream pipeline (API must be running):
+SOMNIA_API_URL=http://127.0.0.1:8000 SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \
+SOMNIA_SERVICE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+  uv run python scripts/seed_demo.py
+# After changing API models: uv run python scripts/export_openapi.py && (cd web && npm run gen:api)
+```
+
 ## Schema
 
 Supabase migrations in `supabase/migrations/`:
@@ -186,6 +230,9 @@ Supabase's `auth` schema and roles; a no-op on real Supabase) plus the real migr
 it afterwards. Without `SOMNIA_TEST_DATABASE_URL` they are skipped locally and fail in CI.
 
 ## Known gaps
+
+- Admin UI has no separate admin role: it acts as one user via a device token (RLS-scoped).
+- Global scheduled dream runs show aggregate counts across all users to every user.
 
 - Agent tasks use the table + `SKIP LOCKED` backend; a pgmq backend is not implemented yet.
 - tiktoken downloads each encoding once on first use (cached under `TIKTOKEN_CACHE_DIR`);

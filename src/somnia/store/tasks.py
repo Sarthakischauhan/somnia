@@ -11,7 +11,7 @@ from somnia.auth.principal import Principal
 from somnia.db.connection import Conn
 from somnia.records import TaskRecord
 
-_COLUMNS = (
+TASK_COLUMNS = (
     "id, session_id, repo, branch, title, payload, status, priority, attempts,"
     " claimed_by_device, locked_until, result, created_at, updated_at"
 )
@@ -31,7 +31,7 @@ def enqueue_task(conn: Conn, principal: Principal, draft: TaskDraft) -> TaskReco
         cur.execute(
             "insert into public.tasks (user_id, created_by_device, session_id, repo, branch,"
             " title, payload, priority) values (%s, %s, %s, %s, %s, %s, %s, %s)"
-            " returning " + _COLUMNS,
+            " returning " + TASK_COLUMNS,
             (
                 principal.user_id,
                 principal.device_id,
@@ -59,7 +59,7 @@ def claim_task(conn: Conn, device_id: UUID, lease_seconds: int) -> TaskRecord | 
             " where id = (select id from public.tasks"
             "   where status = 'queued' or (status = 'running' and locked_until < now())"
             "   order by priority desc, created_at limit 1 for update skip locked)"
-            " returning " + _COLUMNS,
+            " returning " + TASK_COLUMNS,
             (device_id, lease_seconds),
         )
         return cur.fetchone()
@@ -74,7 +74,7 @@ def complete_task(
     with conn.cursor(row_factory=class_row(TaskRecord)) as cur:
         cur.execute(
             "update public.tasks set status = %s, result = %s, locked_until = null,"
-            " updated_at = now() where id = %s returning " + _COLUMNS,
+            " updated_at = now() where id = %s returning " + TASK_COLUMNS,
             (status, Jsonb(result) if result is not None else None, task_id),
         )
         return cur.fetchone()
@@ -82,5 +82,5 @@ def complete_task(
 
 def get_task(conn: Conn, task_id: UUID) -> TaskRecord | None:
     with conn.cursor(row_factory=class_row(TaskRecord)) as cur:
-        cur.execute("select " + _COLUMNS + " from public.tasks where id = %s", (task_id,))
+        cur.execute("select " + TASK_COLUMNS + " from public.tasks where id = %s", (task_id,))
         return cur.fetchone()

@@ -61,7 +61,7 @@ def build_session_context(
         cur.execute(
             "select id, type, scope, content, confidence, created_at, last_used_at,"
             " 1 - (embedding <=> %(v)s::extensions.vector) as similarity"
-            " from public.memories where superseded_by is null"
+            " from public.memories where superseded_by is null and archived_at is null"
             " and (scope = 'global' or (repo = %(repo)s"
             "      and (scope = 'repo' or branch = %(branch)s)))"
             " order by embedding <=> %(v)s::extensions.vector limit %(limit)s",

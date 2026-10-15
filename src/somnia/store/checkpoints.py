@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from somnia.db.connection import Conn
 from somnia.records import CheckpointRecord
 
-_COLUMNS = (
+CHECKPOINT_COLUMNS = (
     "id, session_id, repo, branch, goal, state, next_steps, files_touched, git_ref,"
     " pushed, status, source, created_at"
 )
@@ -42,7 +42,7 @@ def create_checkpoint(
         cur.execute(
             "insert into public.checkpoints (user_id, session_id, repo, branch, goal, state,"
             " next_steps, files_touched, git_ref, pushed, source)"
-            " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning " + _COLUMNS,
+            " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning " + CHECKPOINT_COLUMNS,
             (
                 user_id,
                 session_id,
@@ -67,7 +67,7 @@ def latest_open_checkpoint(conn: Conn, repo: str, branch: str) -> CheckpointReco
     """RLS-scoped: callers run inside user_transaction."""
     with conn.cursor(row_factory=class_row(CheckpointRecord)) as cur:
         cur.execute(
-            "select " + _COLUMNS + " from public.checkpoints"
+            "select " + CHECKPOINT_COLUMNS + " from public.checkpoints"
             " where repo = %s and branch = %s and status = 'open'"
             " order by created_at desc limit 1",
             (repo, branch),
@@ -78,7 +78,7 @@ def latest_open_checkpoint(conn: Conn, repo: str, branch: str) -> CheckpointReco
 def latest_checkpoint_for_session(conn: Conn, session_id: UUID) -> CheckpointRecord | None:
     with conn.cursor(row_factory=class_row(CheckpointRecord)) as cur:
         cur.execute(
-            "select " + _COLUMNS + " from public.checkpoints where session_id = %s"
+            "select " + CHECKPOINT_COLUMNS + " from public.checkpoints where session_id = %s"
             " order by created_at desc limit 1",
             (session_id,),
         )
