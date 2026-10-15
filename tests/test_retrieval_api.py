@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
 from somnia.providers.fake import FakeEmbedder
+from somnia.records import CheckpointRecord
+from somnia.retrieval.context import checkpoint_text
+from somnia.retrieval.tokenizer import TiktokenCounter
 from tests.conftest import FIXED_NOW, Device
 
 pytestmark = pytest.mark.db
@@ -91,20 +94,39 @@ def test_context_packs_checkpoint_and_memories_under_token_budget(
         headers=device.headers,
         json={"goal": "add retries", "state": "wip", "next_steps": ["write test"]},
     )
-    for i in range(5):
-        _memory(service_conn, device, f"retries note {i} " + "x" * 160, 0.9, i)  # ~45 tokens
+    contents = [f"retries note {i} " + "lorem ipsum " * 20 for i in range(5)]
+    for i, content in enumerate(contents):
+        _memory(service_conn, device, content, 0.9, i)
 
+    counter = TiktokenCounter("o200k_base")
+    probe = client.get(
+        "/v1/context",
+        headers=device.headers,
+        params={
+            "repo": "acme/api",
+            "branch": "main",
+            "token_budget": 100_000,
+            "k": 5,
+        },
+    ).json()
+    checkpoint = CheckpointRecord.model_validate(probe["checkpoint"])
+    checkpoint_tokens = counter.count(checkpoint_text(checkpoint))
+    memory_tokens = [counter.count(m["content"]) for m in probe["memories"]]
+    assert probe["tokens_used"] == checkpoint_tokens + sum(memory_tokens)
+    assert probe["token_encoding"] == "o200k_base"
+
+    budget = checkpoint_tokens + memory_tokens[0] + memory_tokens[1]
     body = client.get(
         "/v1/context",
         headers=device.headers,
         params={
             "repo": "acme/api",
             "branch": "main",
-            "token_budget": 120,
+            "token_budget": budget,
             "k": 5,
         },
     ).json()
     assert body["checkpoint"]["goal"] == "add retries"
-    assert body["tokens_used"] <= 120
+    assert body["tokens_used"] == budget
     assert len(body["memories"]) == 2
     assert body["dropped"] == 3

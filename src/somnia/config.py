@@ -6,6 +6,8 @@ from typing import Literal
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from somnia.retrieval.tokenizer import TokenEncoding
+
 _ENV = SettingsConfigDict(env_prefix="SOMNIA_", env_file=".env", extra="ignore")
 
 
@@ -27,6 +29,7 @@ class ApiSettings(BaseSettings):
     pool_max_size: int = Field(default=10, ge=1)
     recency_half_life_days: float = Field(default=30.0, gt=0)
     default_token_budget: int = Field(default=2000, ge=1)
+    token_encoding: TokenEncoding = "o200k_base"
     candidate_pool_factor: int = Field(default=4, ge=1)
 
 

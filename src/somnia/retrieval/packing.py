@@ -1,13 +1,12 @@
-"""Greedy packing of ranked items under a token budget."""
+"""Greedy packing of ranked items under a token budget measured by a real tokenizer."""
 
-import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 
-def estimate_tokens(text: str) -> int:
-    """~4 characters per token; conservative and provider-independent."""
-    return max(1, math.ceil(len(text) / 4))
+class TokenCounter(Protocol):
+    def count(self, text: str) -> int: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,13 +17,17 @@ class Packed[T]:
 
 
 def pack_under_budget[T](
-    items: Sequence[T], texts: Sequence[str], budget: int, reserved: int = 0
+    items: Sequence[T],
+    texts: Sequence[str],
+    budget: int,
+    counter: TokenCounter,
+    reserved: int = 0,
 ) -> Packed[T]:
     """Keep items in rank order while they fit; skip ones that don't."""
     used = reserved
     kept: list[T] = []
     for item, text in zip(items, texts, strict=True):
-        cost = estimate_tokens(text)
+        cost = counter.count(text)
         if used + cost <= budget:
             kept.append(item)
             used += cost

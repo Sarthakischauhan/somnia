@@ -132,3 +132,59 @@ def test_task_queue_claim_complete_and_status(client: TestClient, device: Device
     status = client.get(f"/v1/tasks/{low['id']}/status", headers=device.headers).json()
     assert status["task"]["status"] == "done"
     assert status["latest_checkpoint"]["goal"] == "ship"
+
+
+def test_secrets_are_redacted_before_events_are_stored(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    session_id = _session(client, device)
+    openai_key = "sk-" + "q" * 32
+    github_token = "ghp_" + "b" * 36
+    body = {
+        "events": [
+            {
+                "seq": 1,
+                "kind": "tool_call",
+                "payload": {
+                    "name": "bash",
+                    "input": {
+                        "cmd": f"export OPENAI_API_KEY={openai_key}",
+                        "api_key": "plainvalue1",
+                        "nested": [{"note": f"token {github_token}"}],
+                    },
+                    "output": "Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123",
+                },
+            },
+            {
+                "seq": 2,
+                "kind": "message",
+                "payload": {"role": "user", "content": "db is postgres://app:hunter2secret@db/x"},
+            },
+        ]
+    }
+    url = f"/v1/sessions/{session_id}/events"
+    assert client.post(url, headers=device.headers, json=body).json() == {
+        "accepted": 2,
+        "duplicates": 0,
+    }
+    assert client.post(url, headers=device.headers, json=body).json() == {
+        "accepted": 0,
+        "duplicates": 2,
+    }
+
+    rows = service_conn.execute(
+        "select payload::text from public.events where session_id = %s order by seq",
+        (session_id,),
+    ).fetchall()
+    assert len(rows) == 2
+    stored = " ".join(r[0] for r in rows)
+    for secret in (
+        openai_key,
+        github_token,
+        "plainvalue1",
+        "hunter2secret",
+        "abcdefghijklmnopqrstuvwxyz0123",
+    ):
+        assert secret not in stored
+    assert '"api_key": "[REDACTED]"' in stored
+    assert '"name": "bash"' in stored

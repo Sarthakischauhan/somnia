@@ -9,8 +9,9 @@ from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
 from somnia.providers.protocols import Embedder
 from somnia.records import CheckpointRecord
-from somnia.retrieval.packing import estimate_tokens, pack_under_budget
+from somnia.retrieval.packing import pack_under_budget
 from somnia.retrieval.ranking import MemoryCandidateRow, RankedMemory, rank_memories
+from somnia.retrieval.tokenizer import TiktokenCounter, TokenEncoding
 from somnia.store.checkpoints import latest_open_checkpoint
 
 
@@ -26,6 +27,7 @@ class SessionContext(BaseModel):
     checkpoint: CheckpointRecord | None
     memories: list[RankedMemory]
     token_budget: int
+    token_encoding: TokenEncoding
     tokens_used: int
     dropped: int
 
@@ -47,6 +49,7 @@ def build_session_context(
     now: datetime,
     half_life_days: float,
     candidate_pool: int,
+    counter: TiktokenCounter,
 ) -> SessionContext:
     """Must run inside user_transaction (RLS scopes every query to the caller)."""
     checkpoint = latest_open_checkpoint(conn, request.repo, request.branch)
@@ -66,10 +69,12 @@ def build_session_context(
         )
         rows = cur.fetchall()
     top = rank_memories(rows, now, half_life_days)[: request.k]
-    reserved = estimate_tokens(checkpoint_text(checkpoint)) if checkpoint else 0
+    reserved = counter.count(checkpoint_text(checkpoint)) if checkpoint else 0
     if reserved > request.token_budget:
         checkpoint, reserved = None, 0
-    packed = pack_under_budget(top, [m.content for m in top], request.token_budget, reserved)
+    packed = pack_under_budget(
+        top, [m.content for m in top], request.token_budget, counter, reserved
+    )
     if packed.items:
         conn.execute(
             "update public.memories set last_used_at = %s, use_count = use_count + 1"
@@ -80,6 +85,7 @@ def build_session_context(
         checkpoint=checkpoint,
         memories=packed.items,
         token_budget=request.token_budget,
+        token_encoding=counter.encoding_name,
         tokens_used=packed.tokens_used,
         dropped=packed.dropped,
     )

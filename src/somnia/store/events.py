@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from somnia.db.connection import Conn
 from somnia.ingest.event_models import EventIn
+from somnia.ingest.payload_redaction import redact_json
 
 
 class InsertOutcome(BaseModel):
@@ -18,6 +19,7 @@ class InsertOutcome(BaseModel):
 def insert_events(
     conn: Conn, user_id: UUID, session_id: UUID, events: Sequence[EventIn]
 ) -> InsertOutcome:
+    """Payloads are redacted before they reach the table; a retried seq is ignored."""
     accepted = 0
     with conn.cursor() as cur:
         for event in events:
@@ -30,7 +32,7 @@ def insert_events(
                     session_id,
                     event.seq,
                     event.kind,
-                    Jsonb(event.payload.model_dump(mode="json")),
+                    Jsonb(redact_json(event.payload.model_dump(mode="json"))),
                 ),
             )
             accepted += cur.rowcount

@@ -10,6 +10,7 @@ from somnia.api.dependencies import Scoped
 from somnia.config import ApiSettings
 from somnia.providers.protocols import Embedder
 from somnia.retrieval.context import ContextRequest, SessionContext, build_session_context
+from somnia.retrieval.tokenizer import TiktokenCounter
 
 
 def build_context_router(
@@ -18,6 +19,7 @@ def build_context_router(
     settings: ApiSettings,
     clock: Callable[[], datetime],
 ) -> APIRouter:
+    counter = TiktokenCounter(settings.token_encoding)
     router = APIRouter(prefix="/v1", tags=["retrieval"])
     Db = Annotated[Scoped, Depends(scoped)]  # noqa: N806 - type alias
 
@@ -44,6 +46,7 @@ def build_context_router(
             clock(),
             settings.recency_half_life_days,
             candidate_pool=k * settings.candidate_pool_factor,
+            counter=counter,
         )
 
     return router

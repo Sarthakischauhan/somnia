@@ -67,7 +67,9 @@ it; token hashes are never readable). The request then runs in one transaction w
 policies scope every statement. The API process is only ever configured with
 `SOMNIA_API_DATABASE_URL`; the service URL exists only in `WorkerSettings`.
 
-**Ingestion.** `POST …/events` inserts with `ON CONFLICT (session_id, seq) DO NOTHING` and
+**Ingestion.** Payloads are redacted *before* they are stored: every string in the event JSON goes
+through the shared redactor, and values under secret-looking keys (`api_key`, `password`, `token`,
+`authorization`…) are replaced with `[REDACTED]`. `POST …/events` then inserts with `ON CONFLICT (session_id, seq) DO NOTHING` and
 returns `202` immediately. The `events` table is the outbox: the worker claims
 `processed_at IS NULL` rows with `FOR UPDATE SKIP LOCKED`, renders them to text, redacts secrets
 (private keys, AWS/GitHub/OpenAI/Slack/somnia tokens, JWTs, bearer headers, URL passwords,
@@ -80,7 +82,10 @@ returns `202` immediately. The `events` table is the outbox: the worker claims
 ranked by `max(cosine_sim, 0) × confidence × 0.5^(age_days / half_life)` where age counts from
 `last_used_at` (or `created_at`). pgvector pre-selects `k × candidate_pool_factor` nearest
 neighbours, Python ranks them, and greedy packing keeps the checkpoint plus as many top-k memories
-as fit in `token_budget` (≈4 chars/token). Returned memories get `last_used_at` refreshed.
+as fit in `token_budget`. Tokens are counted with **tiktoken** using the configured encoding
+(`SOMNIA_TOKEN_ENCODING`, typed `o200k_base | cl100k_base | p50k_base | r50k_base`, default
+`o200k_base`); there is no character heuristic. The response echoes `token_encoding` and the exact
+`tokens_used`. Returned memories get `last_used_at` refreshed.
 
 **Dreaming.** `somnia-worker` runs a dream every `SOMNIA_DREAM_INTERVAL_S` and whenever a
 `dream_runs` row is `requested` (from `pg_cron` via `somnia_request_dream()`, scheduled by
@@ -112,7 +117,7 @@ All endpoints except `/healthz` need `Authorization: Bearer <device token>`. Int
 | `POST /v1/tasks/claim` | `?lease_seconds=900` | running task, or `204` when empty |
 | `POST /v1/tasks/{id}/complete` | `{status: done\|failed, result?}` | task |
 | `GET /v1/tasks/{id}/status` | – | `{task, latest_checkpoint}` |
-| `GET /v1/context` | `repo, branch, token_budget?, k=10, query?` | `{checkpoint, memories[{id,type,scope,content,confidence,similarity,recency,score}], token_budget, tokens_used, dropped}` |
+| `GET /v1/context` | `repo, branch, token_budget?` (tiktoken tokens), `k=10, query?` | `{checkpoint, memories[{id,type,scope,content,confidence,similarity,recency,score}], token_budget, token_encoding, tokens_used, dropped}` |
 | `GET /healthz` | – | `{status: ok}` |
 
 Event kinds and payloads:
@@ -183,7 +188,6 @@ it afterwards. Without `SOMNIA_TEST_DATABASE_URL` they are skipped locally and f
 ## Known gaps
 
 - Agent tasks use the table + `SKIP LOCKED` backend; a pgmq backend is not implemented yet.
-- Raw `events.payload` is stored as sent (RLS-protected); redaction applies to chunks, dream
-  transcripts and memories.
-- Token counting is a 4-chars/token estimate, not a model tokenizer.
+- tiktoken downloads each encoding once on first use (cached under `TIKTOKEN_CACHE_DIR`);
+  air-gapped hosts must pre-seed that cache.
 - Embedding dimension is fixed at 1536 by the migration.

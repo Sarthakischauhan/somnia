@@ -3,8 +3,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from somnia.retrieval.packing import estimate_tokens, pack_under_budget
+from somnia.retrieval.packing import pack_under_budget
 from somnia.retrieval.ranking import MemoryCandidateRow, rank_memories, recency_factor
+from somnia.retrieval.tokenizer import TiktokenCounter
 
 NOW = datetime(2026, 10, 15, tzinfo=UTC)
 
@@ -48,10 +49,20 @@ def test_negative_similarity_clamps_to_zero() -> None:
     assert rank_memories([_row("x", -0.4, 1.0, 0)], NOW, 30)[0].score == 0.0
 
 
-def test_packing_respects_budget_and_skips_oversized() -> None:
-    texts = ["a" * 40, "b" * 400, "c" * 40]  # 10, 100, 10 tokens
-    packed = pack_under_budget(texts, texts, budget=30, reserved=5)
-    assert packed.items == ["a" * 40, "c" * 40]
-    assert packed.tokens_used == 25
+def test_tiktoken_counts_real_tokens_per_encoding() -> None:
+    o200k = TiktokenCounter("o200k_base")
+    assert o200k.count("hello world") == 2
+    assert o200k.count("") == 0
+    assert o200k.count("<|endoftext|>") > 1  # special tokens are counted as plain text
+    assert TiktokenCounter("cl100k_base").encoding_name == "cl100k_base"
+
+
+def test_packing_respects_token_budget_and_skips_oversized() -> None:
+    counter = TiktokenCounter("o200k_base")
+    texts = ["use uv run pytest", "word " * 200, "ruff format before commit"]
+    costs = [counter.count(t) for t in texts]
+    budget = 5 + costs[0] + costs[2]
+    packed = pack_under_budget(texts, texts, budget=budget, counter=counter, reserved=5)
+    assert packed.items == [texts[0], texts[2]]
+    assert packed.tokens_used == budget
     assert packed.dropped == 1
-    assert estimate_tokens("") == 1
