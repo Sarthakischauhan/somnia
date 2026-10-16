@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "somnia": {
+      "command": "somnia-agent",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

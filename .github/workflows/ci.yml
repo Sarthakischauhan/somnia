@@ -38,6 +38,29 @@ jobs:
       - name: Tests (real Postgres + pgvector)
         run: uv run pytest -v -m "db or not db"
 
+  agent:
+    name: somnia-agent CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Typecheck (strict)
+        run: uv run mypy
+      - name: Tests (fixture hook payloads per harness)
+        run: uv run pytest -v
+      - name: Install scripts parse
+        run: bash -n ../plugins/codex/install.sh && bash -n ../plugins/grok/install.sh
+
   web:
     runs-on: ubuntu-latest
     defaults:

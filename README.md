@@ -5,8 +5,9 @@ Supabase Postgres + pgvector. Agents post what they do; a worker redacts, chunks
 a scheduled "dream" consolidates sessions into durable memories and checkpoints; the next agent
 on the same repo/branch starts with a ranked, token-budgeted context.
 
-Harness integrations (Claude, Codex, Symphony plugins…) are intentionally **out of scope**:
-any agent that can make HTTP calls can use the API below.
+Harness integrations for Claude Code, Codex and Grok Build live in [`plugins/`](plugins/README.md),
+on top of the [`somnia-agent`](agent/README.md) CLI (hook ingest, session-start context,
+checkpoints, MCP server). Any other agent that can make HTTP calls can use the API below.
 
 ## Stack and why
 

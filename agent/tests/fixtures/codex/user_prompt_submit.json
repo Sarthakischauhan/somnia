@@ -1,0 +1,9 @@
+{
+  "session_id": "cx-sess-1",
+  "turn_id": "turn-1",
+  "transcript_path": null,
+  "cwd": "/work/repo",
+  "hook_event_name": "UserPromptSubmit",
+  "model": "gpt-5-codex",
+  "prompt": "Add retries to the uploader"
+}

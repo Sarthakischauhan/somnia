@@ -1,0 +1,8 @@
+{
+  "session_id": "cc-sess-1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PreCompact",
+  "trigger": "auto",
+  "custom_instructions": ""
+}

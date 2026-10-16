@@ -1,0 +1,5 @@
+# Append to ~/.codex/config.toml (or a trusted project's .codex/config.toml).
+# https://developers.openai.com/codex/mcp
+[mcp_servers.somnia]
+command = "somnia-agent"
+args = ["mcp"]
