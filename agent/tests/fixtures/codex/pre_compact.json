@@ -1,0 +1,9 @@
+{
+  "session_id": "cx-sess-1",
+  "turn_id": "turn-2",
+  "transcript_path": null,
+  "cwd": "/work/repo",
+  "hook_event_name": "PreCompact",
+  "model": "gpt-5-codex",
+  "trigger": "auto"
+}

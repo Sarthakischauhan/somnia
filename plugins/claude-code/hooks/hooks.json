@@ -1,0 +1,106 @@
+{
+  "description": "somnia: context on SessionStart, silent ingest, checkpoints before compaction",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "context",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "ingest",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "ingest",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "ingest",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "checkpoint",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "somnia-agent",
+            "args": [
+              "ingest",
+              "--harness",
+              "claude-code"
+            ],
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

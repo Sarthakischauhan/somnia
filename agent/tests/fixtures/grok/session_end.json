@@ -1,0 +1,6 @@
+{
+  "hookEventName": "SessionEnd",
+  "sessionId": "gk-sess-1",
+  "cwd": "/work/repo",
+  "workspaceRoot": "/work/repo"
+}

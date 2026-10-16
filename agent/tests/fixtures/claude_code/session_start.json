@@ -1,0 +1,8 @@
+{
+  "session_id": "cc-sess-1",
+  "transcript_path": "/tmp/t.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "SessionStart",
+  "source": "startup",
+  "model": "claude-sonnet-4-5"
+}

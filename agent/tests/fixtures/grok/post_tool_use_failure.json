@@ -1,0 +1,11 @@
+{
+  "hookEventName": "PostToolUseFailure",
+  "sessionId": "gk-sess-1",
+  "cwd": "/work/repo",
+  "workspaceRoot": "/work/repo",
+  "toolName": "run_terminal_cmd",
+  "toolInput": {
+    "command": "pytest"
+  },
+  "toolOutput": "2 failed"
+}

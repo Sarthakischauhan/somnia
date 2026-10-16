@@ -1,0 +1,7 @@
+{
+  "hookEventName": "UserPromptSubmit",
+  "sessionId": "gk-sess-1",
+  "cwd": "/work/repo",
+  "workspaceRoot": "/work/repo",
+  "prompt": "Refactor the spool"
+}

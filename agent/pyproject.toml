@@ -1,0 +1,39 @@
+[project]
+name = "somnia-agent"
+version = "0.1.0"
+description = "Harness-side CLI for somnia: hook ingest, session-start context, checkpoints, MCP server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["httpx>=0.27", "pydantic>=2.8"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2.3,<3"]
+
+[project.scripts]
+somnia-agent = "somnia_agent.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "mypy>=1.11", "ruff>=0.6", "mcp>=2.3,<3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/somnia_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "C4", "PT", "RET"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

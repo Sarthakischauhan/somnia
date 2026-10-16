@@ -1,0 +1,12 @@
+{
+  "name": "somnia",
+  "description": "somnia memory plugins",
+  "owner": { "name": "Sarthak Chauhan" },
+  "plugins": [
+    {
+      "name": "somnia",
+      "source": "./plugins/claude-code",
+      "description": "Session memory for Claude Code: silent ingest, session-start context, checkpoints, /continue"
+    }
+  ]
+}

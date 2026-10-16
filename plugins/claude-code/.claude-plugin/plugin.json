@@ -1,0 +1,8 @@
+{
+  "name": "somnia",
+  "version": "0.1.0",
+  "description": "Session memory for Claude Code: silent ingest, session-start context, checkpoints, /continue",
+  "author": { "name": "Sarthak Chauhan" },
+  "repository": "https://github.com/Sarthakischauhan/somnia",
+  "license": "MIT"
+}

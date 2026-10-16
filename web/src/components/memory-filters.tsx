@@ -32,7 +32,7 @@ function FilterSelect(props: {
     <div className="grid gap-1.5">
       <Label htmlFor={props.name}>{props.label}</Label>
       <Select name={props.name} defaultValue={props.value}>
-        <SelectTrigger id={props.name} className="w-40">
+        <SelectTrigger id={props.name} className="w-32">
           <SelectValue placeholder="Any" />
         </SelectTrigger>
         <SelectContent>
@@ -61,7 +61,7 @@ export function MemoryFilters({
     <form method="get" className="flex flex-wrap items-end gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="q">Search</Label>
-        <Input id="q" name="q" defaultValue={values.q} placeholder="Search content" className="w-64" />
+        <Input id="q" name="q" defaultValue={values.q} placeholder="Search content" className="w-52" />
       </div>
       <FilterSelect name="repo" label="Repo" value={values.repo} options={repoNames} />
       <FilterSelect name="branch" label="Branch" value={values.branch} options={branches} />

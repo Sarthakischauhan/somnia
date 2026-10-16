@@ -1,0 +1,10 @@
+{
+  "session_id": "cx-sess-1",
+  "turn_id": "turn-2",
+  "transcript_path": null,
+  "cwd": "/work/repo",
+  "hook_event_name": "Stop",
+  "model": "gpt-5-codex",
+  "stop_hook_active": false,
+  "last_assistant_message": "Retries added with exponential backoff."
+}

@@ -1,0 +1,12 @@
+{
+  "hookEventName": "PostToolUse",
+  "sessionId": "gk-sess-1",
+  "cwd": "/work/repo",
+  "workspaceRoot": "/work/repo",
+  "toolName": "edit_file",
+  "toolInput": {
+    "path": "/work/repo/spool.py",
+    "api_key": "plain-secret-value"
+  },
+  "toolOutput": "edited; token=ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

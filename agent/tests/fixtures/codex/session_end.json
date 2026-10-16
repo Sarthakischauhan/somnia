@@ -1,0 +1,8 @@
+{
+  "session_id": "cx-sess-1",
+  "transcript_path": null,
+  "cwd": "/work/repo",
+  "hook_event_name": "SessionEnd",
+  "model": "gpt-5-codex",
+  "reason": "other"
+}

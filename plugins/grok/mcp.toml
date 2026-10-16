@@ -1,0 +1,6 @@
+# Append to ~/.grok/config.toml (or a trusted project's .grok/config.toml),
+# or run: grok mcp add somnia -- somnia-agent mcp
+# https://docs.x.ai/build/features/mcp-servers
+[mcp_servers.somnia]
+command = "somnia-agent"
+args = ["mcp"]
