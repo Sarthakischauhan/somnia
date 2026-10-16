@@ -26,6 +26,23 @@ class FakeState:
 
 def context_body() -> dict[str, JsonValue]:
     return {
+        "profile": {
+            "repo": "acme/api",
+            "version": 2,
+            "updated_at": "2026-10-15T10:00:00Z",
+            "entries": [
+                {
+                    "id": "p-1",
+                    "section": "stack",
+                    "content": "FastAPI on Postgres",
+                    "confidence": 0.8,
+                    "source_memory_id": None,
+                    "source_checkpoint_id": None,
+                    "source_session_ids": [],
+                    "updated_at": "2026-10-15T10:00:00Z",
+                },
+            ],
+        },
         "checkpoint": {
             "id": str(uuid.uuid4()),
             "goal": "Ship the uploader",
@@ -57,6 +74,18 @@ def context_body() -> dict[str, JsonValue]:
                 "similarity": 0.5,
                 "recency": 1.0,
                 "score": 0.4,
+            },
+            {
+                "source": "chunk",
+                "id": "chunk:9",
+                "type": None,
+                "scope": None,
+                "content": "[message:user] try the staging deploy",
+                "confidence": 0.5,
+                "similarity": 0.6,
+                "recency": 1.0,
+                "score": 0.3,
+                "session_id": "00000000-0000-0000-0000-000000000009",
             },
         ],
         "token_budget": 1500,

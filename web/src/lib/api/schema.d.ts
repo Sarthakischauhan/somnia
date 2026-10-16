@@ -38,6 +38,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conflicts */
+        get: operations["get_conflicts_v1_admin_conflicts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/conflicts/{conflict_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Resolve Conflict */
+        post: operations["post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/dream-runs": {
         parameters: {
             query?: never;
@@ -106,6 +140,23 @@ export interface paths {
         head?: never;
         /** Patch Memory Route */
         patch: operations["patch_memory_route_v1_admin_memories__memory_id__patch"];
+        trace?: never;
+    };
+    "/v1/admin/project-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Profile */
+        get: operations["get_project_profile_v1_admin_project_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/admin/repos": {
@@ -375,10 +426,97 @@ export interface components {
              */
             status: "open" | "closed";
         };
+        /** ConflictRecord */
+        ConflictRecord: {
+            /**
+             * Candidate Memory Id
+             * Format: uuid
+             */
+            candidate_memory_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Existing Memory Id
+             * Format: uuid
+             */
+            existing_memory_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "superseded" | "coexist" | "flagged";
+            /** Rationale */
+            rationale: string;
+            /** Repo */
+            repo: string | null;
+            /** Resolution */
+            resolution: ("keep_existing" | "keep_candidate" | "keep_both") | null;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Session Id */
+            session_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "resolved";
+        };
+        /** ConflictResolution */
+        ConflictResolution: {
+            /**
+             * Resolution
+             * @enum {string}
+             */
+            resolution: "keep_existing" | "keep_candidate" | "keep_both";
+        };
+        /** ConflictView */
+        ConflictView: {
+            candidate: components["schemas"]["MemoryRecord"];
+            conflict: components["schemas"]["ConflictRecord"];
+            existing: components["schemas"]["MemoryRecord"];
+        };
+        /** ContextItem */
+        ContextItem: {
+            /** Confidence */
+            confidence: number;
+            /** Content */
+            content: string;
+            /** Id */
+            id: string;
+            /** Recency */
+            recency: number;
+            /** Scope */
+            scope: ("global" | "repo" | "branch") | null;
+            /** Score */
+            score: number;
+            /** Session Id */
+            session_id: string | null;
+            /** Similarity */
+            similarity: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "memory" | "chunk";
+            /** Type */
+            type: ("fact" | "decision" | "convention" | "gotcha" | "todo") | null;
+        };
         /** DreamRunRecord */
         DreamRunRecord: {
             /** Checkpoints Created */
             checkpoints_created: number;
+            /** Coalesced */
+            coalesced: number;
+            /** Conflicts Flagged */
+            conflicts_flagged: number;
             /** Error */
             error: string | null;
             /** Finished At */
@@ -392,6 +530,8 @@ export interface components {
             logical_now: string | null;
             /** Memories Added */
             memories_added: number;
+            /** Memories Coexisting */
+            memories_coexisting: number;
             /** Memories Decayed */
             memories_decayed: number;
             /** Memories Merged */
@@ -400,6 +540,10 @@ export interface components {
             memories_superseded: number;
             /** Parent Run Id */
             parent_run_id: string | null;
+            /** Profile Entries Changed */
+            profile_entries_changed: number;
+            /** Repo */
+            repo: string | null;
             /**
              * Requested At
              * Format: date-time
@@ -418,7 +562,7 @@ export interface components {
              * Trigger
              * @enum {string}
              */
-            trigger: "schedule" | "pg_cron" | "manual";
+            trigger: "schedule" | "pg_cron" | "manual" | "session_end" | "idle" | "chunk_threshold";
             /** User Id */
             user_id: string | null;
         };
@@ -586,8 +730,8 @@ export interface components {
              */
             role: "user" | "assistant" | "system" | "tool";
         };
-        /** RankedMemory */
-        RankedMemory: {
+        /** ProfileEntryOut */
+        ProfileEntryOut: {
             /** Confidence */
             confidence: number;
             /** Content */
@@ -597,22 +741,36 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Recency */
-            recency: number;
             /**
-             * Scope
+             * Section
              * @enum {string}
              */
-            scope: "global" | "repo" | "branch";
-            /** Score */
-            score: number;
-            /** Similarity */
-            similarity: number;
+            section: "stack" | "conventions" | "architecture" | "decisions" | "open_work" | "pitfalls";
+            /** Source Checkpoint Id */
+            source_checkpoint_id: string | null;
+            /** Source Memory Id */
+            source_memory_id: string | null;
+            /** Source Session Ids */
+            source_session_ids: string[];
             /**
-             * Type
-             * @enum {string}
+             * Updated At
+             * Format: date-time
              */
-            type: "fact" | "decision" | "convention" | "gotcha" | "todo";
+            updated_at: string;
+        };
+        /** ProjectProfileOut */
+        ProjectProfileOut: {
+            /** Entries */
+            entries: components["schemas"]["ProfileEntryOut"][];
+            /** Repo */
+            repo: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
         };
         /** RepoBranch */
         RepoBranch: {
@@ -627,7 +785,8 @@ export interface components {
             /** Dropped */
             dropped: number;
             /** Memories */
-            memories: components["schemas"]["RankedMemory"][];
+            memories: components["schemas"]["ContextItem"][];
+            profile: components["schemas"]["ProjectProfileOut"] | null;
             /** Token Budget */
             token_budget: number;
             /**
@@ -902,6 +1061,78 @@ export interface operations {
             };
         };
     };
+    get_conflicts_v1_admin_conflicts_get: {
+        parameters: {
+            query?: {
+                status?: ("open" | "resolved")[] | null;
+                outcome?: ("superseded" | "coexist" | "flagged")[] | null;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                conflict_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConflictResolution"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_dream_runs_v1_admin_dream_runs_get: {
         parameters: {
             query?: {
@@ -1095,6 +1326,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_profile_v1_admin_project_profile_get: {
+        parameters: {
+            query: {
+                repo: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectProfileOut"];
                 };
             };
             /** @description Validation Error */

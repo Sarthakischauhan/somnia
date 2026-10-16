@@ -144,3 +144,38 @@ def decay_unused(
         {"u": user_id, "floor": floor, "f": factor, "now": now, "secs": after_days * 86400},
     )
     return cur.rowcount
+
+
+def record_conflict(
+    conn: Conn,
+    *,
+    user_id: UUID,
+    repo: str | None,
+    existing_id: UUID,
+    candidate_id: UUID,
+    outcome: str,
+    rationale: str,
+    session_id: UUID,
+    now: datetime,
+) -> UUID:
+    """Provenance for every contradiction outcome. Only `flagged` stays open for a human."""
+    row = conn.execute(
+        "insert into public.memory_conflicts (user_id, repo, existing_memory_id,"
+        " candidate_memory_id, outcome, rationale, session_id, status, created_at, resolved_at)"
+        " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
+        (
+            user_id,
+            repo,
+            existing_id,
+            candidate_id,
+            outcome,
+            rationale,
+            session_id,
+            "open" if outcome == "flagged" else "resolved",
+            now,
+            None if outcome == "flagged" else now,
+        ),
+    ).fetchone()
+    if row is None:
+        raise RuntimeError("conflict insert returned no row")
+    return UUID(str(row[0]))

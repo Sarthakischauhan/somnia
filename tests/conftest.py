@@ -99,3 +99,27 @@ def client(database: TestDatabase, service_conn: Conn) -> Iterator[TestClient]:
     app = create_app(settings, FakeEmbedder(), clock=lambda: FIXED_NOW)
     with TestClient(app) as test_client:
         yield test_client
+
+
+def post_session(
+    client: TestClient,
+    device: Device,
+    messages: list[str],
+    repo: str = "acme/api",
+    branch: str = "main",
+) -> str:
+    """Create a session through the API and post `messages` as user message events."""
+    session = client.post(
+        "/v1/sessions", headers=device.headers, json={"repo": repo, "branch": branch}
+    )
+    assert session.status_code == 201, session.text
+    session_id = str(session.json()["id"])
+    events = [
+        {"seq": i + 1, "kind": "message", "payload": {"role": "user", "content": m}}
+        for i, m in enumerate(messages)
+    ]
+    posted = client.post(
+        f"/v1/sessions/{session_id}/events", headers=device.headers, json={"events": events}
+    )
+    assert posted.status_code == 202, posted.text
+    return session_id

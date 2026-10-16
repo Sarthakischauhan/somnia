@@ -12,6 +12,7 @@ from somnia.dreaming.memory_store import (
     insert_memory,
     merge_into,
     nearest_active,
+    record_conflict,
     supersede,
     target_for,
 )
@@ -39,14 +40,18 @@ class _RawEvent(BaseModel):
     payload: dict[str, JsonValue]
 
 
-def sessions_needing_dream(conn: Conn, user_id: UUID) -> list[SessionToDream]:
+def sessions_needing_dream(
+    conn: Conn, user_id: UUID, repo: str | None = None
+) -> list[SessionToDream]:
+    """`repo` limits an event-triggered run to that repo; None means every repo."""
     with conn.cursor(row_factory=class_row(SessionToDream)) as cur:
         cur.execute(
             "select s.id, s.user_id, s.repo, s.branch, s.git_ref, s.dreamed_through_seq"
-            " from public.sessions s where s.user_id = %s and exists (select 1"
+            " from public.sessions s where s.user_id = %s"
+            " and (%s::text is null or s.repo = %s::text) and exists (select 1"
             "   from public.events e where e.session_id = s.id and e.seq > s.dreamed_through_seq)"
             " order by s.started_at for update of s skip locked",
-            (user_id,),
+            (user_id, repo, repo),
         )
         return cur.fetchall()
 
@@ -117,7 +122,7 @@ def _apply_candidate(
         insert_memory(conn, target, candidate, content, vector, [session.id], now)
         counts.memories_added += 1
         return
-    decision = llm.reconcile(nearest.content, content)
+    decision = llm.reconcile(nearest.content, content, candidate.scope)
     decided = redact_secrets(decision.content).text
     decided_vector = (
         vector if decided == content else to_vector_literal(embedder.embed([decided])[0])
@@ -134,9 +139,39 @@ def _apply_candidate(
             now,
         )
         counts.memories_merged += 1
-    elif decision.action == "supersede":
-        supersede(conn, nearest.id, target, candidate, decided, decided_vector, session.id, now)
-        counts.memories_superseded += 1
-    else:
+        return
+    if decision.action == "add":
         insert_memory(conn, target, candidate, decided, decided_vector, [session.id], now)
         counts.memories_added += 1
+        return
+    if decision.action == "supersede":
+        new_id = supersede(
+            conn, nearest.id, target, candidate, decided, decided_vector, session.id, now
+        )
+        outcome = "superseded"
+        counts.memories_superseded += 1
+    elif decision.action == "coexist":
+        narrowed = candidate.model_copy(
+            update={"scope": decision.narrowed_scope or candidate.scope}
+        )
+        narrow_target = target_for(narrowed, session.user_id, session.repo, session.branch)
+        new_id = insert_memory(
+            conn, narrow_target, narrowed, decided, decided_vector, [session.id], now
+        )
+        outcome = "coexist"
+        counts.memories_coexisting += 1
+    else:  # flag: keep both, a human decides
+        new_id = insert_memory(conn, target, candidate, decided, decided_vector, [session.id], now)
+        outcome = "flagged"
+        counts.conflicts_flagged += 1
+    record_conflict(
+        conn,
+        user_id=session.user_id,
+        repo=session.repo,
+        existing_id=nearest.id,
+        candidate_id=new_id,
+        outcome=outcome,
+        rationale=decision.rationale,
+        session_id=session.id,
+        now=now,
+    )

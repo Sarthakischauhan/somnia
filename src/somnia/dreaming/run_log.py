@@ -17,10 +17,14 @@ class DreamCounts(BaseModel):
     memories_merged: int = 0
     memories_superseded: int = 0
     memories_decayed: int = 0
+    conflicts_flagged: int = 0
+    memories_coexisting: int = 0
+    profile_entries_changed: int = 0
 
 
 class RunRequest(BaseModel):
     user_id: UUID | None
+    repo: str | None
     trigger: str
 
 
@@ -35,7 +39,7 @@ def claim_requested_run(conn: Conn) -> UUID | None:
 
 def load_request(conn: Conn, run_id: UUID) -> RunRequest:
     with conn.cursor(row_factory=class_row(RunRequest)) as cur:
-        cur.execute("select user_id, trigger from public.dream_runs where id = %s", (run_id,))
+        cur.execute("select user_id, repo, trigger from public.dream_runs where id = %s", (run_id,))
         request = cur.fetchone()
     if request is None:
         raise LookupError(f"dream run {run_id} not found")
@@ -63,7 +67,8 @@ def finish_run(
         "update public.dream_runs set status = %s, error = %s, logical_now = %s,"
         " started_at = coalesce(started_at, clock_timestamp()), finished_at = clock_timestamp(),"
         " sessions_processed = %s, checkpoints_created = %s, memories_added = %s,"
-        " memories_merged = %s, memories_superseded = %s, memories_decayed = %s"
+        " memories_merged = %s, memories_superseded = %s, memories_decayed = %s,"
+        " conflicts_flagged = %s, memories_coexisting = %s, profile_entries_changed = %s"
         " where id = %s",
         (
             "failed" if error else "succeeded",
@@ -75,6 +80,9 @@ def finish_run(
             counts.memories_merged,
             counts.memories_superseded,
             counts.memories_decayed,
+            counts.conflicts_flagged,
+            counts.memories_coexisting,
+            counts.profile_entries_changed,
             run_id,
         ),
     )

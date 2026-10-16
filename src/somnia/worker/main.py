@@ -12,6 +12,7 @@ from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
 from somnia.dreaming.policy import DreamPolicy
 from somnia.dreaming.run_log import claim_requested_run
+from somnia.dreaming.triggers import enqueue_chunk_thresholds, enqueue_idle_sessions
 from somnia.ingest.pipeline import process_pending_events
 from somnia.providers.factory import Providers, build_providers
 
@@ -26,6 +27,8 @@ def _tick(conn: Conn, settings: WorkerSettings, providers: Providers, dream_due:
         settings.chunk_max_chars,
         settings.chunk_overlap_chars,
     )
+    enqueue_idle_sessions(conn, datetime.now(UTC), settings.idle_minutes)
+    enqueue_chunk_thresholds(conn, settings.chunk_threshold)
     policy = DreamPolicy.from_settings(settings)
     requested = claim_requested_run(conn)
     if requested is not None:
