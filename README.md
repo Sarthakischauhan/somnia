@@ -222,10 +222,12 @@ actions.
 
 | Page | Shows |
 | --- | --- |
-| `/memories` | List with repo, branch, type, and scope filters, content search, and toggles for superseded and archived rows |
-| `/memories/[id]` | Provenance (`source_session_ids` to sessions), the full `superseded_by` chain in both directions, edit confidence, archive and restore |
-| `/dreaming` | `dream_runs` history (sessions, added, merged, superseded, decayed, duration), **Run dream now**, and schedule status (worker interval, pg_cron job, last success, pending requests) |
-| `/sessions` | Latest checkpoint per repo and branch, task queue counts, and recent tasks |
+| `/project` | project profile per repo: six sections, each entry with confidence and provenance (memory / checkpoint, sessions) |
+| `/conflicts` | flagged contradictions side by side with **Keep existing / Keep new / Keep both**; history of resolved and auto-reconciled (superseded / coexist) conflicts |
+| `/memories` | list with repo / branch / type / scope filters, content search, include superseded / archived |
+| `/memories/[id]` | provenance (`source_session_ids` → sessions), full `superseded_by` chain both ways, edit confidence, archive / restore |
+| `/dreaming` | `dream_runs` history (sessions, added, merged, superseded, decayed, duration), **Run dream now**, schedule status (worker interval, pg_cron job, last success, pending requests) |
+| `/sessions` | latest checkpoint per repo/branch, task queue counts and recent tasks |
 
 Admin endpoints use the same per-device token and RLS scope as the agent API. An admin
 token is a device token for that user, so the UI can only see and curate that user's rows.
@@ -243,6 +245,9 @@ Column grants allow updates to `confidence`, `archived_at`, `last_used_at`, and
 | `GET /v1/admin/dream-schedule` | | `{pg_cron_schedule, worker_interval_s, last_run, last_success_at, pending_requests}` |
 | `GET /v1/admin/checkpoints/latest` | | latest checkpoint per repo and branch |
 | `GET /v1/admin/tasks` | `status` (repeatable), `limit` | `{counts: {queued, running, done, failed}, items}` |
+| `GET /v1/admin/project-profile` | `repo` | `{repo, version, updated_at, entries: ProfileEntry[]}` (404 before the first build) |
+| `GET /v1/admin/conflicts` | `status` (default `open`), `outcome` (both repeatable), `limit` | `[{conflict, existing: Memory, candidate: Memory}]` |
+| `POST /v1/admin/conflicts/{id}/resolve` | `{resolution: keep_existing \| keep_candidate \| keep_both}` | the resolved conflict (`409` if already resolved) |
 
 Archived memories are excluded from retrieval, dedupe, and decay. Every `dream_runs` row
 that carries stats belongs to one user (RLS is owner-only). A scheduled or pg_cron run
@@ -280,6 +285,59 @@ update `memories.last_used_at` and `memories.use_count`.
 | `memories` | Type, scope, repo, branch, content, embedding, confidence, `last_used_at`, `superseded_by`, `source_session_ids` |
 | `checkpoints` | Goal, state, next steps, files touched, git ref, pushed |
 | `dream_runs` | One logged dream per user |
+
+## Project profiles, triggers, hybrid retrieval, conflicts
+
+**Project profile.** One `project_profiles` row per (user, repo). Its entries
+(`project_profile_entries`) sit in six sections: stack, conventions, architecture notes, key
+decisions, open work and known pitfalls. Each entry carries provenance (source memory *or*
+checkpoint, branch, session ids) and a confidence, and is RLS-scoped like everything else.
+Dreaming rebuilds it incrementally from a compound `(timestamp, id)` cursor, compared as a row
+tuple so rows that share the last timestamp are not skipped: only memories updated and
+checkpoints created after the cursor are read. Active repo-scoped memories are classified into a
+section by the LLM provider (`classify_profile`, typed output) and upserted by source memory.
+Superseded or archived memories retire their entry. A branch's newest checkpoint replaces that
+branch's open-work entries. Entries are retired, never deleted.
+
+**`/v1/context` order.** The profile comes first, then the latest open checkpoint, then the top-k
+memories and undreamt chunks, packed in that priority order under `token_budget` (tiktoken).
+When the budget is short, the lowest-priority pieces are dropped first: memories and chunks,
+then the checkpoint, then the lowest-priority profile entries. Memories already shown as
+profile entries are not repeated.
+
+**Event-triggered dreaming.** pg_cron and the worker interval stay as the backstop. A repo dream
+is also queued when:
+- a session closes (database trigger);
+- an open session with undreamt events is idle for `SOMNIA_IDLE_MINUTES` (default 30);
+- a repo's undreamt chunks reach `SOMNIA_CHUNK_THRESHOLD` (default 200).
+
+A partial unique index keeps one pending dream per (user, repo). Later triggers increment
+`coalesced` instead of queueing duplicates. The worker's sweeps skip repos that already have a
+run queued or running. A repo run consolidates and re-profiles only that repo.
+
+**Hybrid retrieval.** Chunks of events past their session's dream watermark are ranked with
+memories, so a session's new context is searchable before the next dream. Their score is
+`similarity × SOMNIA_CHUNK_WEIGHT (0.5) × recency`. A chunk is dropped when a candidate memory
+is at least `SOMNIA_CHUNK_DEDUPE_SIMILARITY` (0.9) similar to it. Each item says
+`source: "memory" | "chunk"`.
+
+**Contradictions.** When a candidate memory is close to an existing one, the provider's typed
+`ReconcileDecision` picks one of:
+- `merge`: same fact;
+- `add`: unrelated;
+- `supersede`: the new memory replaces the old one, which is kept and linked via
+  `superseded_by`;
+- `coexist`: the candidate is stored with a narrower scope, e.g. repo → branch;
+- `flag`: both stay stored and a `memory_conflicts` row stays open for a human. Until it is
+  resolved, retrieval (profile entries, ranked memories, chunk dedupe) serves only the newer
+  memory with `disputed: true`; the agent renders a visible `[DISPUTED: ...]` marker. Once
+  resolved, the pair is served normally.
+
+Every supersede, coexist and flag writes a `memory_conflicts` row with the rationale and the
+session id. Nothing is deleted. Flagged conflicts appear on the **Conflicts** page and at
+`GET /v1/admin/conflicts`, and are resolved with `POST /v1/admin/conflicts/{id}/resolve`
+(`keep_existing | keep_candidate | keep_both`). Resolution goes through the owner-checked
+`somnia_resolve_conflict` function, which marks the losing side superseded.
 
 ## Setup
 
@@ -321,9 +379,15 @@ CI.
 
 ## Known gaps
 
-- The admin UI has no separate admin role. It acts as one user through a device token, and
-  RLS limits what that token can see.
-- Agent tasks use the table and `SKIP LOCKED`. A pgmq backend is not implemented yet.
-- tiktoken downloads each encoding once on first use and caches it under
-  `TIKTOKEN_CACHE_DIR`. Air-gapped hosts must pre-seed that cache.
-- The embedding dimension is fixed at 1536 by the migration.
+- Admin UI has no separate admin role: it acts as one user via a device token (RLS-scoped).
+
+- Agent tasks use the table + `SKIP LOCKED` backend; a pgmq backend is not implemented yet.
+- tiktoken downloads each encoding once on first use (cached under `TIKTOKEN_CACHE_DIR`);
+  air-gapped hosts must pre-seed that cache.
+- Embedding dimension is fixed at 1536 by the migration.
+- While a flagged conflict is open the newer side wins by default, even if the older one is
+  right; agents see the `DISPUTED` marker, but not the withheld statement.
+- The profile tracks repo-scoped memories only; branch- and global-scope memories reach
+  agents through ranked retrieval, not the profile.
+- The profile cursor is `(timestamp, id)`: a row that commits *after* a rebuild with exactly
+  the cursor's timestamp and a smaller id is still picked up only on its next update.

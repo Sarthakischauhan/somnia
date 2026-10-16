@@ -133,7 +133,12 @@ def test_dream_merges_supersedes_and_keeps_provenance(
         "/v1/context", headers=device.headers, params={"repo": "acme/api", "branch": "main"}
     ).json()
     assert context["checkpoint"]["session_id"] == s3
-    assert [m["content"] for m in context["memories"]] == ["tests run with tox now"]
+    # The active repo memory is delivered once, as a project-profile entry (not repeated).
+    entries = context["profile"]["entries"]
+    assert [e["content"] for e in entries if e["section"] != "open_work"] == [
+        "tests run with tox now"
+    ]
+    assert context["memories"] == []
 
 
 def test_dream_decays_unused_memories_without_deleting(

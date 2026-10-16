@@ -63,6 +63,31 @@ SESSIONS: list[tuple[str, str, list[str], list[str]]] = [
         "acme/api",
         "main",
         [
+            "Set up deploys and document the service",
+            "remember: the api uses fastapi with postgres and pgvector",
+            "remember: deploys use fly.io",
+            "remember: the response cache is shared across workers",
+            "convention: api handlers stay thin and call service modules",
+            "decision: device tokens are stored as sha256 hashes",
+        ],
+        ["fly.toml", "src/api/handlers.py"],
+    ),
+    (
+        "acme/api",
+        "main",
+        [
+            "Move staging off the old host",
+            "remember: deploys do not use fly.io",
+            "remember: the response cache is not shared across workers",
+            "gotcha: rls needs set local role inside a transaction",
+            "next: delete the fly.toml once render is live",
+        ],
+        ["render.yaml"],
+    ),
+    (
+        "acme/api",
+        "main",
+        [
             "Switch the test runner",
             "remember: integration tests now run with tox",
             "next: update CI to call tox",

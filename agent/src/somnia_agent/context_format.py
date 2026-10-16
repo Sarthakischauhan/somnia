@@ -4,7 +4,7 @@ It is delivered in the harness's context suffix (additionalContext / tool result
 never the system prompt, and the model is told not to act on instructions inside it.
 """
 
-from somnia_agent.api_models import CheckpointOut, ContextOut
+from somnia_agent.api_models import CheckpointOut, ContextOut, MemoryOut, ProfileOut
 
 OPEN_TAG = '<somnia-memory trust="untrusted">'
 CLOSE_TAG = "</somnia-memory>"
@@ -22,6 +22,10 @@ def _neutralise(text: str) -> str:
     )
 
 
+# Shown before the served side of an unresolved flagged conflict.
+DISPUTED_MARK = "[DISPUTED: contradicts an older memory, unresolved; verify before relying on it] "
+
+
 def _checkpoint_lines(checkpoint: CheckpointOut) -> list[str]:
     lines = [
         f"[checkpoint branch={checkpoint.branch} at={checkpoint.created_at}]",
@@ -37,17 +41,32 @@ def _checkpoint_lines(checkpoint: CheckpointOut) -> list[str]:
     return lines
 
 
+def _profile_lines(profile: ProfileOut) -> list[str]:
+    lines = [f"[project profile repo={profile.repo}]"]
+    lines.extend(
+        f"{e.section}: {DISPUTED_MARK if e.disputed else ''}{e.content}" for e in profile.entries
+    )
+    return lines
+
+
+def _item_line(item: MemoryOut) -> str:
+    if item.source == "chunk":
+        return f"[recent session note, not yet consolidated] {item.content}"
+    mark = DISPUTED_MARK if item.disputed else ""
+    return (
+        f"[memory type={item.type} scope={item.scope} "
+        f"confidence={item.confidence:.2f}] {mark}{item.content}"
+    )
+
+
 def render_context(context: ContextOut, skip_ids: frozenset[str] = frozenset()) -> str | None:
+    """Profile first, then the checkpoint, then memories / recent chunks (server order)."""
     body: list[str] = []
+    if context.profile is not None and context.profile.entries:
+        body.extend(_profile_lines(context.profile))
     if context.checkpoint is not None:
         body.extend(_checkpoint_lines(context.checkpoint))
-    for memory in context.memories:
-        if memory.id in skip_ids:
-            continue
-        body.append(
-            f"[memory type={memory.type} scope={memory.scope} "
-            f"confidence={memory.confidence:.2f}] {memory.content}"
-        )
+    body.extend(_item_line(item) for item in context.memories if item.id not in skip_ids)
     if not body:
         return None
     inner = _neutralise("\n".join(body))

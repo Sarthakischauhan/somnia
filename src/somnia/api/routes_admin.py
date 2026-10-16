@@ -11,6 +11,16 @@ from somnia.api.dependencies import Scoped
 from somnia.config import ApiSettings
 from somnia.providers.protocols import MemoryScope, MemoryType
 from somnia.records import CheckpointRecord
+from somnia.retrieval.profile_context import ProjectProfileOut, load_profile
+from somnia.store.admin_conflicts import (
+    ConflictAlreadyResolvedError,
+    ConflictOutcome,
+    ConflictResolution,
+    ConflictStatus,
+    ConflictView,
+    list_conflicts,
+    resolve_conflict,
+)
 from somnia.store.admin_dreams import (
     DreamRunRecord,
     DreamSchedule,
@@ -112,5 +122,36 @@ def build_admin_router(scoped: Callable[..., Iterator[Scoped]], settings: ApiSet
     ) -> TaskQueue:
         statuses = status_in or ["queued", "running", "done", "failed"]
         return task_queue(db.conn, statuses, limit)
+
+    @router.get("/project-profile")
+    def get_project_profile(db: Db, repo: Annotated[str, Query(min_length=1)]) -> ProjectProfileOut:
+        profile = load_profile(db.conn, repo)
+        if profile is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "no profile for this repo yet")
+        return profile
+
+    @router.get("/conflicts")
+    def get_conflicts(
+        db: Db,
+        status_in: Annotated[list[ConflictStatus] | None, Query(alias="status")] = None,
+        outcome: Annotated[list[ConflictOutcome] | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    ) -> list[ConflictView]:
+        return list_conflicts(
+            db.conn,
+            status_in or ["open"],
+            outcome or ["superseded", "coexist", "flagged"],
+            limit,
+        )
+
+    @router.post("/conflicts/{conflict_id}/resolve")
+    def post_resolve_conflict(conflict_id: UUID, body: ConflictResolution, db: Db) -> ConflictView:
+        try:
+            resolved = resolve_conflict(db.conn, conflict_id, body.resolution)
+        except ConflictAlreadyResolvedError as exc:
+            raise HTTPException(status.HTTP_409_CONFLICT, "conflict already resolved") from exc
+        if resolved is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "conflict not found")
+        return resolved
 
     return router

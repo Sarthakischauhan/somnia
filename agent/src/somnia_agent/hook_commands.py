@@ -81,9 +81,10 @@ def context_for(hook: HookEvent, token_budget: int, k: int, http_timeout: float)
     with make_http(config, http_timeout) as http:
         context = SomniaClient(http).context(git.repo, git.branch, token_budget, k, hook.prompt)
     if hook.event == "UserPromptSubmit":
-        # Per-prompt retrieval: no checkpoint, only memories not already injected.
+        # Per-prompt retrieval: profile and checkpoint came at SessionStart; only add
+        # memories not already injected this session.
         seen = _injected(directory)
-        fresh = context.model_copy(update={"checkpoint": None})
+        fresh = context.model_copy(update={"checkpoint": None, "profile": None})
         text = render_context(fresh, frozenset(seen))
     else:
         seen = set()

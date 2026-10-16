@@ -12,14 +12,15 @@ from somnia.db.connection import Conn
 _COLUMNS = (
     "id, user_id, trigger, status, requested_at, started_at, finished_at, sessions_processed,"
     " checkpoints_created, memories_added, memories_merged, memories_superseded,"
-    " memories_decayed, error, parent_run_id, logical_now"
+    " memories_decayed, error, parent_run_id, logical_now, repo, coalesced,"
+    " conflicts_flagged, memories_coexisting, profile_entries_changed"
 )
 
 
 class DreamRunRecord(BaseModel):
     id: UUID
     user_id: UUID | None
-    trigger: Literal["schedule", "pg_cron", "manual"]
+    trigger: Literal["schedule", "pg_cron", "manual", "session_end", "idle", "chunk_threshold"]
     status: Literal["requested", "running", "succeeded", "failed"]
     requested_at: datetime
     started_at: datetime | None
@@ -33,6 +34,11 @@ class DreamRunRecord(BaseModel):
     error: str | None
     parent_run_id: UUID | None
     logical_now: datetime | None
+    repo: str | None
+    coalesced: int
+    conflicts_flagged: int
+    memories_coexisting: int
+    profile_entries_changed: int
 
 
 class DreamSchedule(BaseModel):

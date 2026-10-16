@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { somnia, unwrap } from "@/lib/api/client";
+import { type Resolution, somnia, unwrap } from "@/lib/api/client";
 
 export async function updateConfidence(memoryId: string, formData: FormData): Promise<void> {
   const confidence = Number(formData.get("confidence"));
@@ -33,4 +33,15 @@ export async function setArchived(memoryId: string, archived: boolean): Promise<
 export async function runDreamNow(): Promise<void> {
   unwrap(await somnia().POST("/v1/admin/dream-runs"));
   revalidatePath("/dreaming");
+}
+
+export async function resolveConflict(conflictId: string, resolution: Resolution): Promise<void> {
+  unwrap(
+    await somnia().POST("/v1/admin/conflicts/{conflict_id}/resolve", {
+      params: { path: { conflict_id: conflictId } },
+      body: { resolution },
+    }),
+  );
+  revalidatePath("/conflicts");
+  revalidatePath("/memories");
 }

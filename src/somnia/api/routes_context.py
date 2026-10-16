@@ -9,7 +9,12 @@ from fastapi import APIRouter, Depends, Query
 from somnia.api.dependencies import Scoped
 from somnia.config import ApiSettings
 from somnia.providers.protocols import Embedder
-from somnia.retrieval.context import ContextRequest, SessionContext, build_session_context
+from somnia.retrieval.context import (
+    ContextRequest,
+    RetrievalWeights,
+    SessionContext,
+    build_session_context,
+)
 from somnia.retrieval.tokenizer import TiktokenCounter
 
 
@@ -39,15 +44,13 @@ def build_context_router(
             query=query,
             token_budget=token_budget or settings.default_token_budget,
         )
-        return build_session_context(
-            db.conn,
-            embedder,
-            request,
-            clock(),
-            settings.recency_half_life_days,
+        weights = RetrievalWeights(
+            half_life_days=settings.recency_half_life_days,
             candidate_pool=k * settings.candidate_pool_factor,
-            counter=counter,
+            chunk_weight=settings.chunk_weight,
+            chunk_dedupe_similarity=settings.chunk_dedupe_similarity,
         )
+        return build_session_context(db.conn, embedder, request, clock(), weights, counter)
 
     return router
 

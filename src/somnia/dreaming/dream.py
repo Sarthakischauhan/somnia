@@ -8,6 +8,7 @@ from somnia.db.connection import Conn
 from somnia.dreaming.consolidate import consolidate_session, sessions_needing_dream
 from somnia.dreaming.memory_store import decay_unused
 from somnia.dreaming.policy import DreamPolicy
+from somnia.dreaming.profile_builder import profile_repos, rebuild_profile
 from somnia.dreaming.run_log import DreamCounts, finish_run, load_request, start_user_run
 from somnia.providers.protocols import Embedder, Llm
 
@@ -41,7 +42,7 @@ def run_dream(
     if run_id is not None:
         request = load_request(conn, run_id)
         if request.user_id is not None:
-            _dream_for_user(conn, llm, embedder, policy, now, request.user_id, run_id)
+            _dream_for_user(conn, llm, embedder, policy, now, request.user_id, run_id, request.repo)
             return [run_id]
         try:
             ids = _fan_out(conn, llm, embedder, policy, now, request.trigger, run_id)
@@ -78,11 +79,13 @@ def _dream_for_user(
     now: datetime,
     user_id: UUID,
     run_id: UUID,
+    repo: str | None = None,
 ) -> None:
+    """`repo` set: an event-triggered run consolidates and re-profiles only that repo."""
     counts = DreamCounts()
     try:
         with conn.transaction():
-            for session in sessions_needing_dream(conn, user_id):
+            for session in sessions_needing_dream(conn, user_id, repo):
                 consolidate_session(conn, session, llm, embedder, policy, counts, now)
             counts.memories_decayed = decay_unused(
                 conn,
@@ -92,6 +95,10 @@ def _dream_for_user(
                 policy.decay_factor,
                 policy.min_confidence,
             )
+            for profile_repo in [repo] if repo is not None else profile_repos(conn, user_id):
+                counts.profile_entries_changed += rebuild_profile(
+                    conn, user_id, profile_repo, llm, now
+                )
     except Exception as exc:
         finish_run(conn, run_id, DreamCounts(), f"{type(exc).__name__}: {exc}", now)
         raise

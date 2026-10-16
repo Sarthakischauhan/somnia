@@ -32,6 +32,8 @@ class ApiSettings(BaseSettings):
     token_encoding: TokenEncoding = "o200k_base"
     dream_interval_s: float = Field(default=3600.0, gt=0)  # shown in the admin UI
     candidate_pool_factor: int = Field(default=4, ge=1)
+    chunk_weight: float = Field(default=0.5, ge=0, le=1)  # undreamt chunks rank below memories
+    chunk_dedupe_similarity: float = Field(default=0.9, ge=0, le=1)
 
 
 class WorkerSettings(BaseSettings):
@@ -48,3 +50,5 @@ class WorkerSettings(BaseSettings):
     decay_after_days: float = Field(default=14.0, gt=0)
     decay_factor: float = Field(default=0.9, gt=0, le=1)
     min_confidence: float = Field(default=0.05, ge=0, le=1)
+    idle_minutes: float = Field(default=30.0, gt=0)  # open session quiet this long -> dream
+    chunk_threshold: int = Field(default=200, ge=1)  # undreamt chunks per repo -> dream

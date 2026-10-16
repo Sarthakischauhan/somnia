@@ -26,14 +26,31 @@ class CheckpointOut(_Response):
 
 
 class MemoryOut(_Response):
+    """A retrieved item: a dreamt memory, or a not-yet-dreamt session chunk."""
+
+    source: str = "memory"
     id: str
-    type: str
-    scope: str
+    type: str | None = None
+    scope: str | None = None
     content: str
     confidence: float
+    disputed: bool = False
+
+
+class ProfileEntryOut(_Response):
+    section: str
+    content: str
+    confidence: float
+    disputed: bool = False
+
+
+class ProfileOut(_Response):
+    repo: str
+    entries: list[ProfileEntryOut]
 
 
 class ContextOut(_Response):
+    profile: ProfileOut | None = None
     checkpoint: CheckpointOut | None
     memories: list[MemoryOut]
     token_budget: int

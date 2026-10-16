@@ -155,10 +155,268 @@
         "title": "CheckpointRecord",
         "type": "object"
       },
+      "ConflictRecord": {
+        "properties": {
+          "candidate_memory_id": {
+            "format": "uuid",
+            "title": "Candidate Memory Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "existing_memory_id": {
+            "format": "uuid",
+            "title": "Existing Memory Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "superseded",
+              "coexist",
+              "flagged"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "enum": [
+                  "keep_existing",
+                  "keep_candidate",
+                  "keep_both"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolved"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "repo",
+          "existing_memory_id",
+          "candidate_memory_id",
+          "outcome",
+          "rationale",
+          "session_id",
+          "status",
+          "resolution",
+          "created_at",
+          "resolved_at"
+        ],
+        "title": "ConflictRecord",
+        "type": "object"
+      },
+      "ConflictResolution": {
+        "properties": {
+          "resolution": {
+            "enum": [
+              "keep_existing",
+              "keep_candidate",
+              "keep_both"
+            ],
+            "title": "Resolution",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resolution"
+        ],
+        "title": "ConflictResolution",
+        "type": "object"
+      },
+      "ConflictView": {
+        "properties": {
+          "candidate": {
+            "$ref": "#/components/schemas/MemoryRecord"
+          },
+          "conflict": {
+            "$ref": "#/components/schemas/ConflictRecord"
+          },
+          "existing": {
+            "$ref": "#/components/schemas/MemoryRecord"
+          }
+        },
+        "required": [
+          "conflict",
+          "existing",
+          "candidate"
+        ],
+        "title": "ConflictView",
+        "type": "object"
+      },
+      "ContextItem": {
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "disputed": {
+            "default": false,
+            "title": "Disputed",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "recency": {
+            "title": "Recency",
+            "type": "number"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "global",
+                  "repo",
+                  "branch"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "similarity": {
+            "title": "Similarity",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "memory",
+              "chunk"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "fact",
+                  "decision",
+                  "convention",
+                  "gotcha",
+                  "todo"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "required": [
+          "source",
+          "id",
+          "type",
+          "scope",
+          "content",
+          "confidence",
+          "similarity",
+          "recency",
+          "score",
+          "session_id"
+        ],
+        "title": "ContextItem",
+        "type": "object"
+      },
       "DreamRunRecord": {
         "properties": {
           "checkpoints_created": {
             "title": "Checkpoints Created",
+            "type": "integer"
+          },
+          "coalesced": {
+            "title": "Coalesced",
+            "type": "integer"
+          },
+          "conflicts_flagged": {
+            "title": "Conflicts Flagged",
             "type": "integer"
           },
           "error": {
@@ -205,6 +463,10 @@
             "title": "Memories Added",
             "type": "integer"
           },
+          "memories_coexisting": {
+            "title": "Memories Coexisting",
+            "type": "integer"
+          },
           "memories_decayed": {
             "title": "Memories Decayed",
             "type": "integer"
@@ -228,6 +490,21 @@
               }
             ],
             "title": "Parent Run Id"
+          },
+          "profile_entries_changed": {
+            "title": "Profile Entries Changed",
+            "type": "integer"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
           },
           "requested_at": {
             "format": "date-time",
@@ -264,7 +541,10 @@
             "enum": [
               "schedule",
               "pg_cron",
-              "manual"
+              "manual",
+              "session_end",
+              "idle",
+              "chunk_threshold"
             ],
             "title": "Trigger",
             "type": "string"
@@ -298,7 +578,12 @@
           "memories_decayed",
           "error",
           "parent_run_id",
-          "logical_now"
+          "logical_now",
+          "repo",
+          "coalesced",
+          "conflicts_flagged",
+          "memories_coexisting",
+          "profile_entries_changed"
         ],
         "title": "DreamRunRecord",
         "type": "object"
@@ -799,7 +1084,7 @@
         "title": "MessagePayload",
         "type": "object"
       },
-      "RankedMemory": {
+      "ProfileEntryOut": {
         "properties": {
           "confidence": {
             "title": "Confidence",
@@ -809,55 +1094,109 @@
             "title": "Content",
             "type": "string"
           },
+          "disputed": {
+            "default": false,
+            "title": "Disputed",
+            "type": "boolean"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
-          "recency": {
-            "title": "Recency",
-            "type": "number"
-          },
-          "scope": {
+          "section": {
             "enum": [
-              "global",
-              "repo",
-              "branch"
+              "stack",
+              "conventions",
+              "architecture",
+              "decisions",
+              "open_work",
+              "pitfalls"
             ],
-            "title": "Scope",
+            "title": "Section",
             "type": "string"
           },
-          "score": {
-            "title": "Score",
-            "type": "number"
-          },
-          "similarity": {
-            "title": "Similarity",
-            "type": "number"
-          },
-          "type": {
-            "enum": [
-              "fact",
-              "decision",
-              "convention",
-              "gotcha",
-              "todo"
+          "source_checkpoint_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Type",
+            "title": "Source Checkpoint Id"
+          },
+          "source_memory_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Memory Id"
+          },
+          "source_session_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Source Session Ids",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "type",
-          "scope",
+          "section",
           "content",
           "confidence",
-          "similarity",
-          "recency",
-          "score"
+          "source_memory_id",
+          "source_checkpoint_id",
+          "source_session_ids",
+          "updated_at"
         ],
-        "title": "RankedMemory",
+        "title": "ProfileEntryOut",
+        "type": "object"
+      },
+      "ProjectProfileOut": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ProfileEntryOut"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "repo": {
+            "title": "Repo",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo",
+          "version",
+          "updated_at",
+          "entries"
+        ],
+        "title": "ProjectProfileOut",
         "type": "object"
       },
       "RepoBranch": {
@@ -896,10 +1235,20 @@
           },
           "memories": {
             "items": {
-              "$ref": "#/components/schemas/RankedMemory"
+              "$ref": "#/components/schemas/ContextItem"
             },
             "title": "Memories",
             "type": "array"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectProfileOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "token_budget": {
             "title": "Token Budget",
@@ -921,6 +1270,7 @@
           }
         },
         "required": [
+          "profile",
           "checkpoint",
           "memories",
           "token_budget",
@@ -1559,6 +1909,187 @@
         ]
       }
     },
+    "/v1/admin/conflicts": {
+      "get": {
+        "operationId": "get_conflicts_v1_admin_conflicts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "open",
+                      "resolved"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "outcome",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "superseded",
+                      "coexist",
+                      "flagged"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Outcome"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConflictView"
+                  },
+                  "title": "Response Get Conflicts V1 Admin Conflicts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conflicts",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/conflicts/{conflict_id}/resolve": {
+      "post": {
+        "operationId": "post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conflict_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conflict Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConflictResolution"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Resolve Conflict",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/v1/admin/dream-runs": {
       "get": {
         "operationId": "get_dream_runs_v1_admin_dream_runs_get",
@@ -2025,6 +2556,65 @@
           }
         },
         "summary": "Patch Memory Route",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/v1/admin/project-profile": {
+      "get": {
+        "operationId": "get_project_profile_v1_admin_project_profile_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Repo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project Profile",
         "tags": [
           "admin"
         ]
