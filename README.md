@@ -143,7 +143,9 @@ curl "localhost:8000/v1/context?repo=acme/api&branch=main&token_budget=800" -H "
 
 ## Admin UI (`web/`)
 
-Next.js 15 (App Router, TypeScript strict) with plain shadcn/ui components. Every page is a server
+Next.js 15 (App Router, TypeScript strict) with plain shadcn/ui components: collapsible shadcn
+Sidebar navigation, light/dark themes via next-themes (system default, toggle in the sidebar
+footer, no hydration flash), `--radius: 0.25rem`, low-contrast `--border` in both themes. Every page is a server
 component that calls **only** the FastAPI service through a typed client generated from the
 service's OpenAPI schema (`openapi-typescript` + `openapi-fetch`). `SOMNIA_API_URL` and
 `SOMNIA_ADMIN_TOKEN` are read server-side (`server-only` modules, no `NEXT_PUBLIC_`), so the token
