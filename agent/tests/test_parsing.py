@@ -53,13 +53,3 @@ def test_session_lifecycle_events_carry_no_payload_events() -> None:
     for harness, folder in [(Harness.CLAUDE_CODE, "claude_code"), (Harness.CODEX, "codex")]:
         hook = parse_hook(harness, fixture_bytes(folder, "pre_compact"))
         assert hook_to_events(hook) == []
-
-
-def test_grok_running_a_claude_plugin_hook_is_parsed_as_grok(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from somnia_agent.harness_payloads import effective_harness
-
-    assert effective_harness(Harness.CLAUDE_CODE) is Harness.CLAUDE_CODE
-    monkeypatch.setenv("GROK_HOOK_EVENT", "PostToolUse")
-    assert effective_harness(Harness.CLAUDE_CODE) is Harness.GROK

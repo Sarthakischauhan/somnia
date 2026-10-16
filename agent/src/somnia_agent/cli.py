@@ -5,8 +5,9 @@ from collections.abc import Sequence
 
 from somnia_agent.config import DEFAULT_API_URL
 from somnia_agent.flush_command import run_flush
-from somnia_agent.harness_payloads import Harness, effective_harness
+from somnia_agent.harness_payloads import Harness
 from somnia_agent.hook_commands import run_checkpoint, run_context, run_ingest
+from somnia_agent.host_detection import hosted_by_another_harness
 from somnia_agent.login_command import run_login
 
 DEFAULT_HOOK_TIMEOUT = 1.5
@@ -46,14 +47,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     command: str = args.command
+    if command in {"ingest", "checkpoint", "context"} and hosted_by_another_harness(
+        Harness(args.harness)
+    ):
+        return 0  # the host's own somnia plugin ingests; no spool write, no stdout
     if command == "ingest":
-        return run_ingest(effective_harness(Harness(args.harness)), args.timeout)
+        return run_ingest(Harness(args.harness), args.timeout)
     if command == "checkpoint":
-        return run_checkpoint(effective_harness(Harness(args.harness)), args.timeout, args.reason)
+        return run_checkpoint(Harness(args.harness), args.timeout, args.reason)
     if command == "context":
-        return run_context(
-            effective_harness(Harness(args.harness)), args.timeout, args.token_budget, args.k
-        )
+        return run_context(Harness(args.harness), args.timeout, args.token_budget, args.k)
     if command == "login":
         return run_login(args.api_url, args.token, verify=not args.no_verify)
     if command == "flush":

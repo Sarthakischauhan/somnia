@@ -88,3 +88,19 @@ def test_claude_plugin_manifest_and_marketplace_names_match() -> None:
     (entry,) = market["plugins"]
     assert entry["name"] == manifest["name"] == "somnia"
     assert entry["source"] == "./plugins/claude-code"
+
+
+@pytest.mark.parametrize(
+    ("config", "harness"),
+    [
+        ("claude-code/hooks/hooks.json", "claude-code"),
+        ("codex/hooks.json", "codex"),
+        ("grok/somnia-hooks.json", "grok"),
+    ],
+)
+def test_every_hook_names_its_harness(config: str, harness: str) -> None:
+    """The CLI relies on the flag to know which plugin invoked it (host detection)."""
+    parser = build_parser()
+    for argvs in _commands(PLUGINS / config).values():
+        for argv in argvs:
+            assert parser.parse_args(argv[1:]).harness == harness

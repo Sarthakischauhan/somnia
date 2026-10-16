@@ -35,8 +35,10 @@ lives only in the worker. **Gap:** the service has no device-code flow yet, so t
 | `login` | you | See above. |
 | `mcp` | MCP clients | stdio server with `search_memory`, `status`, `continue_session`. |
 
-`H` is `claude-code`, `codex` or `grok`. When `GROK_HOOK_EVENT` is set (Grok Build running a hook,
-including Claude Code plugin hooks it imports), the payload is parsed as Grok's camelCase format.
+`H` is `claude-code`, `codex` or `grok`, and every shipped hook passes it explicitly. Grok Build
+also runs Claude Code plugin hooks. It sets `GROK_HOOK_EVENT` for every hook process
+(https://docs.x.ai/build/features/hooks), so a `--harness claude-code` hook that sees that variable
+no-ops (exit 0, no spool write, no stdout) and the Grok plugin does the ingest.
 
 ## Guarantees
 

@@ -5,7 +5,6 @@ Unknown fields are ignored so new harness versions do not break ingest.
 """
 
 import json
-import os
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -91,8 +90,3 @@ def parse_hook(harness: Harness, raw: bytes) -> HookEvent:
         prompt=snake.prompt,
         assistant_message=snake.last_assistant_message,
     )
-
-
-def effective_harness(requested: Harness) -> Harness:
-    """Grok Build also runs Claude Code plugin hooks, but sends its own camelCase payload."""
-    return Harness.GROK if os.environ.get("GROK_HOOK_EVENT") else requested

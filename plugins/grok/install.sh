@@ -34,6 +34,6 @@ cat <<'MSG'
 
 Next:
   1. somnia-agent login --api-url https://<your-somnia-api>   (paste a per-device smn_ token)
-  2. Do not also install the somnia Claude Code plugin for Grok: Grok runs Claude Code plugin
-     hooks too, which would ingest every event twice.
+  2. If the somnia Claude Code plugin is also installed, Grok runs its hooks too; they detect
+     GROK_HOOK_EVENT and no-op, so only these Grok hooks ingest.
 MSG

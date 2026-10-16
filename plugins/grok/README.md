@@ -19,9 +19,12 @@ The script:
 - runs `grok mcp add somnia -- somnia-agent mcp` (or appends `mcp.toml` to `~/.grok/config.toml`);
 - appends the `AGENTS.md` block to `~/.grok/AGENTS.md`, which Grok loads every session.
 
-Don't also install the Claude Code plugin for Grok. Grok imports Claude Code plugins and hooks
-automatically, so every event would be ingested twice. If the Claude plugin is installed anyway,
-`somnia-agent` detects `GROK_HOOK_EVENT` and parses Grok's payload correctly.
+Grok imports Claude Code plugins and their hooks automatically, so if the somnia Claude Code
+plugin is also installed, its hooks run inside Grok too. To prevent double ingest,
+`somnia-agent` checks `GROK_HOOK_EVENT`, which Grok sets in the environment of every hook process
+([hooks docs](https://docs.x.ai/build/features/hooks), "The script contract"). When it is set and
+the hook was invoked with `--harness claude-code`, the command exits 0 with no spool write and no
+stdout. Only this Grok plugin (`--harness grok`) ingests.
 
 ## What runs when
 
