@@ -29,6 +29,7 @@ class ProfileEntryOut(BaseModel):
     source_checkpoint_id: UUID | None
     source_session_ids: list[UUID]
     updated_at: datetime
+    disputed: bool = False
 
 
 class ProjectProfileOut(BaseModel):

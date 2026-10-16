@@ -177,3 +177,46 @@ def test_other_resolutions(
         json={"resolution": "delete_both"},
     )
     assert bad.status_code == 422
+
+
+def _served(client: TestClient, device: Device) -> dict[str, bool]:
+    """content -> disputed, across profile entries and ranked memory items."""
+    response = client.get(
+        "/v1/context",
+        headers=device.headers,
+        params={"repo": "acme/api", "branch": "main", "token_budget": 4000, "query": "deploys"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    served = {e["content"]: e["disputed"] for e in (body["profile"] or {"entries": []})["entries"]}
+    for item in body["memories"]:
+        if item["source"] == "memory":
+            served[item["content"]] = item["disputed"]
+    return served
+
+
+def test_open_flag_serves_only_newer_memory_marked_disputed(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    _teach(client, device, service_conn, "deploys use fly.io", "deploys do not use fly.io")
+    served = _served(client, device)
+    assert "deploys use fly.io" not in served  # older side withheld while open
+    assert served["deploys do not use fly.io"] is True
+
+    # Same rule on the ranked-memory path: drop the profile so memories are served as items.
+    service_conn.execute("update public.project_profile_entries set retired_at = %s", (FIXED_NOW,))
+    served = _served(client, device)
+    assert "deploys use fly.io" not in served
+    assert served["deploys do not use fly.io"] is True
+
+    (view,) = client.get("/v1/admin/conflicts", headers=device.headers).json()
+    resolved = client.post(
+        f"/v1/admin/conflicts/{view['conflict']['id']}/resolve",
+        headers=device.headers,
+        json={"resolution": "keep_both"},
+    )
+    assert resolved.status_code == 200, resolved.text
+    assert _served(client, device) == {
+        "deploys use fly.io": False,
+        "deploys do not use fly.io": False,
+    }

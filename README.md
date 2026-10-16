@@ -211,8 +211,9 @@ policies and column-level grants (e.g. agents may only touch `memories.last_used
 (`project_profile_entries`) sit in six sections: stack, conventions, architecture notes, key
 decisions, open work and known pitfalls. Each entry carries provenance (source memory *or*
 checkpoint, branch, session ids) and a confidence, and is RLS-scoped like everything else.
-Dreaming rebuilds it incrementally from watermarks: only memories updated and checkpoints
-created since the last build are read. Active repo-scoped memories are classified into a
+Dreaming rebuilds it incrementally from a compound `(timestamp, id)` cursor, compared as a row
+tuple so rows that share the last timestamp are not skipped: only memories updated and
+checkpoints created after the cursor are read. Active repo-scoped memories are classified into a
 section by the LLM provider (`classify_profile`, typed output) and upserted by source memory.
 Superseded or archived memories retire their entry. A branch's newest checkpoint replaces that
 branch's open-work entries. Entries are retired, never deleted.
@@ -246,7 +247,10 @@ is at least `SOMNIA_CHUNK_DEDUPE_SIMILARITY` (0.9) similar to it. Each item says
 - `supersede`: the new memory replaces the old one, which is kept and linked via
   `superseded_by`;
 - `coexist`: the candidate is stored with a narrower scope, e.g. repo → branch;
-- `flag`: both stay active and a `memory_conflicts` row stays open for a human.
+- `flag`: both stay stored and a `memory_conflicts` row stays open for a human. Until it is
+  resolved, retrieval (profile entries, ranked memories, chunk dedupe) serves only the newer
+  memory with `disputed: true`; the agent renders a visible `[DISPUTED: ...]` marker. Once
+  resolved, the pair is served normally.
 
 Every supersede, coexist and flag writes a `memory_conflicts` row with the rationale and the
 session id. Nothing is deleted. Flagged conflicts appear on the **Conflicts** page and at
@@ -299,9 +303,9 @@ it afterwards. Without `SOMNIA_TEST_DATABASE_URL` they are skipped locally and f
 - tiktoken downloads each encoding once on first use (cached under `TIKTOKEN_CACHE_DIR`);
   air-gapped hosts must pre-seed that cache.
 - Embedding dimension is fixed at 1536 by the migration.
-- Both sides of an open flagged conflict stay in the project profile and retrieval until it
-  is resolved. They are visible on the Conflicts page, but agents see both statements meanwhile.
+- While a flagged conflict is open the newer side wins by default, even if the older one is
+  right; agents see the `DISPUTED` marker, but not the withheld statement.
 - The profile tracks repo-scoped memories only; branch- and global-scope memories reach
   agents through ranked retrieval, not the profile.
-- Profile watermarks compare timestamps strictly (`>`): a memory written later with exactly
-  the watermark's timestamp would be picked up only on its next update.
+- The profile cursor is `(timestamp, id)`: a row that commits *after* a rebuild with exactly
+  the cursor's timestamp and a smaller id is still picked up only on its next update.

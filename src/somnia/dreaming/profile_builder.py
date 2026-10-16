@@ -21,7 +21,16 @@ CHECKPOINT_CONFIDENCE = 0.6
 class _ProfileState(BaseModel):
     id: UUID
     memories_through: datetime | None
+    memories_through_id: UUID | None
     checkpoints_through: datetime | None
+    checkpoints_through_id: UUID | None
+
+
+class _Cursor(BaseModel):
+    """Last (timestamp, id) consumed; rows compare as a tuple so ties are never skipped."""
+
+    ts: datetime | None
+    id: UUID | None
 
 
 class _ChangedMemory(BaseModel):
@@ -48,7 +57,8 @@ def _ensure_profile(conn: Conn, user_id: UUID, repo: str) -> _ProfileState:
         cur.execute(
             "insert into public.project_profiles (user_id, repo) values (%s, %s)"
             " on conflict (user_id, repo) do update set repo = excluded.repo"
-            " returning id, memories_through, checkpoints_through",
+            " returning id, memories_through, memories_through_id, checkpoints_through,"
+            " checkpoints_through_id",
             (user_id, repo),
         )
         state = cur.fetchone()
@@ -57,29 +67,27 @@ def _ensure_profile(conn: Conn, user_id: UUID, repo: str) -> _ProfileState:
     return state
 
 
-def _changed_memories(
-    conn: Conn, user_id: UUID, repo: str, since: datetime | None
-) -> list[_ChangedMemory]:
+def _changed_memories(conn: Conn, user_id: UUID, repo: str, since: _Cursor) -> list[_ChangedMemory]:
     with conn.cursor(row_factory=class_row(_ChangedMemory)) as cur:
         cur.execute(
             "select id, type, content, confidence, source_session_ids, updated_at,"
             " (superseded_by is null and archived_at is null) as active"
             " from public.memories where user_id = %s and repo = %s and scope = 'repo'"
-            " and (%s::timestamptz is null or updated_at > %s) order by updated_at, id",
-            (user_id, repo, since, since),
+            " and (%s::timestamptz is null or (updated_at, id) > (%s::timestamptz, %s::uuid))"
+            " order by updated_at, id",
+            (user_id, repo, since.ts, since.ts, since.id),
         )
         return cur.fetchall()
 
 
-def _new_checkpoints(
-    conn: Conn, user_id: UUID, repo: str, since: datetime | None
-) -> list[_NewCheckpoint]:
+def _new_checkpoints(conn: Conn, user_id: UUID, repo: str, since: _Cursor) -> list[_NewCheckpoint]:
     with conn.cursor(row_factory=class_row(_NewCheckpoint)) as cur:
         cur.execute(
             "select id, session_id, branch, goal, next_steps, created_at"
             " from public.checkpoints where user_id = %s and repo = %s"
-            " and (%s::timestamptz is null or created_at > %s) order by created_at, id",
-            (user_id, repo, since, since),
+            " and (%s::timestamptz is null or (created_at, id) > (%s::timestamptz, %s::uuid))"
+            " order by created_at, id",
+            (user_id, repo, since.ts, since.ts, since.id),
         )
         return cur.fetchall()
 
@@ -171,8 +179,10 @@ def _apply_checkpoints(
 def rebuild_profile(conn: Conn, user_id: UUID, repo: str, llm: Llm, now: datetime) -> int:
     """Returns how many entries were added, updated or retired."""
     state = _ensure_profile(conn, user_id, repo)
-    memories = _changed_memories(conn, user_id, repo, state.memories_through)
-    checkpoints = _new_checkpoints(conn, user_id, repo, state.checkpoints_through)
+    memory_cursor = _Cursor(ts=state.memories_through, id=state.memories_through_id)
+    checkpoint_cursor = _Cursor(ts=state.checkpoints_through, id=state.checkpoints_through_id)
+    memories = _changed_memories(conn, user_id, repo, memory_cursor)
+    checkpoints = _new_checkpoints(conn, user_id, repo, checkpoint_cursor)
     if not memories and not checkpoints:
         return 0
     changed = 0
@@ -180,12 +190,19 @@ def rebuild_profile(conn: Conn, user_id: UUID, repo: str, llm: Llm, now: datetim
         changed += _apply_memories(conn, state.id, user_id, memories, llm, now)
     if checkpoints:
         changed += _apply_checkpoints(conn, state.id, user_id, checkpoints, now)
+    if memories:
+        memory_cursor = _Cursor(ts=memories[-1].updated_at, id=memories[-1].id)
+    if checkpoints:
+        checkpoint_cursor = _Cursor(ts=checkpoints[-1].created_at, id=checkpoints[-1].id)
     conn.execute(
-        "update public.project_profiles set memories_through = %s, checkpoints_through = %s,"
+        "update public.project_profiles set memories_through = %s, memories_through_id = %s,"
+        " checkpoints_through = %s, checkpoints_through_id = %s,"
         " version = version + 1, updated_at = %s where id = %s",
         (
-            memories[-1].updated_at if memories else state.memories_through,
-            checkpoints[-1].created_at if checkpoints else state.checkpoints_through,
+            memory_cursor.ts,
+            memory_cursor.id,
+            checkpoint_cursor.ts,
+            checkpoint_cursor.id,
             now,
             state.id,
         ),

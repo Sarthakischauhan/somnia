@@ -22,6 +22,10 @@ def _neutralise(text: str) -> str:
     )
 
 
+# Shown before the served side of an unresolved flagged conflict.
+DISPUTED_MARK = "[DISPUTED: contradicts an older memory, unresolved; verify before relying on it] "
+
+
 def _checkpoint_lines(checkpoint: CheckpointOut) -> list[str]:
     lines = [
         f"[checkpoint branch={checkpoint.branch} at={checkpoint.created_at}]",
@@ -39,16 +43,19 @@ def _checkpoint_lines(checkpoint: CheckpointOut) -> list[str]:
 
 def _profile_lines(profile: ProfileOut) -> list[str]:
     lines = [f"[project profile repo={profile.repo}]"]
-    lines.extend(f"{e.section}: {e.content}" for e in profile.entries)
+    lines.extend(
+        f"{e.section}: {DISPUTED_MARK if e.disputed else ''}{e.content}" for e in profile.entries
+    )
     return lines
 
 
 def _item_line(item: MemoryOut) -> str:
     if item.source == "chunk":
         return f"[recent session note, not yet consolidated] {item.content}"
+    mark = DISPUTED_MARK if item.disputed else ""
     return (
         f"[memory type={item.type} scope={item.scope} "
-        f"confidence={item.confidence:.2f}] {item.content}"
+        f"confidence={item.confidence:.2f}] {mark}{item.content}"
     )
 
 

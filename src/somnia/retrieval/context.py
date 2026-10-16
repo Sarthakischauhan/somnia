@@ -12,9 +12,15 @@ from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
 from somnia.providers.protocols import Embedder
 from somnia.records import CheckpointRecord
+from somnia.retrieval.disputes import OpenDisputes, load_open_disputes
 from somnia.retrieval.hybrid import ContextItem, chunk_items, merge_ranked, undreamt_chunks
 from somnia.retrieval.packing import pack_under_budget
-from somnia.retrieval.profile_context import ProjectProfileOut, entry_text, load_profile
+from somnia.retrieval.profile_context import (
+    ProfileEntryOut,
+    ProjectProfileOut,
+    entry_text,
+    load_profile,
+)
 from somnia.retrieval.ranking import MemoryCandidateRow, rank_memories
 from somnia.retrieval.tokenizer import TiktokenCounter, TokenEncoding
 from somnia.store.checkpoints import latest_open_checkpoint
@@ -71,6 +77,18 @@ def _memory_candidates(
         return cur.fetchall()
 
 
+def _profile_entries(
+    profile: ProjectProfileOut | None, disputes: OpenDisputes
+) -> list[ProfileEntryOut]:
+    """Drops entries backed by a withheld memory and marks the served side disputed."""
+    entries = profile.entries if profile else []
+    return [
+        e.model_copy(update={"disputed": e.source_memory_id in disputes.disputed})
+        for e in entries
+        if e.source_memory_id is None or e.source_memory_id not in disputes.withheld
+    ]
+
+
 def build_session_context(
     conn: Conn,
     embedder: Embedder,
@@ -86,11 +104,16 @@ def build_session_context(
         checkpoint_text(checkpoint) if checkpoint else f"{request.repo} {request.branch}"
     )
     vector = to_vector_literal(embedder.embed([query])[0])
-    memory_rows = _memory_candidates(conn, vector, request, weights.candidate_pool)
+    disputes = load_open_disputes(conn)
+    memory_rows = [
+        row
+        for row in _memory_candidates(conn, vector, request, weights.candidate_pool)
+        if row.id not in disputes.withheld
+    ]
     chunk_rows = undreamt_chunks(
         conn, vector, request.repo, [m.id for m in memory_rows], weights.candidate_pool
     )
-    entries = profile.entries if profile else []
+    entries = _profile_entries(profile, disputes)
     packed_profile = pack_under_budget(
         entries, [entry_text(e) for e in entries], request.token_budget, counter
     )
@@ -108,6 +131,7 @@ def build_session_context(
         ),
         request.k,
         in_profile,
+        disputes.disputed,
     )
     used = packed_profile.tokens_used
     dropped = packed_profile.dropped

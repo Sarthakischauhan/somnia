@@ -29,6 +29,7 @@ class ContextItem(BaseModel):
     recency: float
     score: float
     session_id: UUID | None
+    disputed: bool = False
 
 
 class ChunkCandidateRow(BaseModel):
@@ -59,7 +60,7 @@ def undreamt_chunks(
         return cur.fetchall()
 
 
-def memory_item(memory: RankedMemory) -> ContextItem:
+def memory_item(memory: RankedMemory, disputed: bool = False) -> ContextItem:
     return ContextItem(
         source="memory",
         id=str(memory.id),
@@ -71,6 +72,7 @@ def memory_item(memory: RankedMemory) -> ContextItem:
         recency=memory.recency,
         score=memory.score,
         session_id=None,
+        disputed=disputed,
     )
 
 
@@ -109,8 +111,12 @@ def merge_ranked(
     chunks: Sequence[ContextItem],
     k: int,
     exclude_memory_ids: frozenset[UUID] = frozenset(),
+    disputed_ids: frozenset[UUID] = frozenset(),
 ) -> list[ContextItem]:
-    """Top-k across both sources. Memories already present as profile entries are skipped."""
-    combined = [memory_item(m) for m in memories if m.id not in exclude_memory_ids]
+    """Top-k across both sources. Memories already present as profile entries (or withheld
+    by an open dispute) are skipped; the served side of an open dispute is marked."""
+    combined = [
+        memory_item(m, m.id in disputed_ids) for m in memories if m.id not in exclude_memory_ids
+    ]
     combined.extend(chunks)
     return sorted(combined, key=lambda item: item.score, reverse=True)[:k]

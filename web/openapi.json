@@ -314,6 +314,11 @@
             "title": "Content",
             "type": "string"
           },
+          "disputed": {
+            "default": false,
+            "title": "Disputed",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -1088,6 +1093,11 @@
           "content": {
             "title": "Content",
             "type": "string"
+          },
+          "disputed": {
+            "default": false,
+            "title": "Disputed",
+            "type": "boolean"
           },
           "id": {
             "format": "uuid",

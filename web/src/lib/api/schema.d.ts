@@ -489,6 +489,11 @@ export interface components {
             confidence: number;
             /** Content */
             content: string;
+            /**
+             * Disputed
+             * @default false
+             */
+            disputed: boolean;
             /** Id */
             id: string;
             /** Recency */
@@ -736,6 +741,11 @@ export interface components {
             confidence: number;
             /** Content */
             content: string;
+            /**
+             * Disputed
+             * @default false
+             */
+            disputed: boolean;
             /**
              * Id
              * Format: uuid

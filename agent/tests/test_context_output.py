@@ -1,7 +1,13 @@
 import json
 
 from somnia_agent.api_models import ContextOut
-from somnia_agent.context_format import CLOSE_TAG, OPEN_TAG, UNTRUSTED_NOTE, render_context
+from somnia_agent.context_format import (
+    CLOSE_TAG,
+    DISPUTED_MARK,
+    OPEN_TAG,
+    UNTRUSTED_NOTE,
+    render_context,
+)
 from somnia_agent.harness_payloads import Harness
 from somnia_agent.hook_output import context_stdout
 from tests.conftest import fixture_bytes, run_cli
@@ -77,3 +83,43 @@ def test_render_shape_and_grok_plain_text() -> None:
         )
         is None
     )
+
+
+def test_disputed_items_carry_a_visible_marker() -> None:
+    context = ContextOut.model_validate(
+        {
+            "profile": {
+                "repo": "acme/api",
+                "entries": [
+                    {"section": "stack", "content": "deploys on fly", "confidence": 0.8},
+                    {
+                        "section": "architecture",
+                        "content": "deploys do not use fly.io",
+                        "confidence": 0.8,
+                        "disputed": True,
+                    },
+                ],
+            },
+            "checkpoint": None,
+            "memories": [
+                {"id": "m1", "type": "fact", "scope": "repo", "content": "x", "confidence": 0.5},
+                {
+                    "id": "m2",
+                    "type": "fact",
+                    "scope": "repo",
+                    "content": "y",
+                    "confidence": 0.5,
+                    "disputed": True,
+                },
+            ],
+            "token_budget": 100,
+            "tokens_used": 10,
+            "dropped": 0,
+        }
+    )
+    text = render_context(context)
+    assert text is not None
+    assert f"architecture: {DISPUTED_MARK}deploys do not use fly.io" in text
+    assert "stack: deploys on fly" in text
+    assert f"{DISPUTED_MARK}y" in text
+    assert text.count(DISPUTED_MARK) == 2

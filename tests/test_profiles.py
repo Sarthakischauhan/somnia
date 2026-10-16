@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
 from somnia.dreaming.policy import DreamPolicy
+from somnia.dreaming.profile_builder import rebuild_profile
 from somnia.providers.fake import FakeEmbedder, FakeLlm
 from somnia.providers.protocols import ProfileItem, ProfileSection
 from somnia.retrieval.tokenizer import TiktokenCounter
@@ -190,3 +191,36 @@ def test_context_orders_profile_checkpoint_memories_and_drops_lowest_first(
     kept = lowest_profile_entry_dropped["profile"]
     assert isinstance(kept, dict)
     assert [e["content"] for e in kept["entries"]] == ["squash merge"]
+
+
+def _insert_memory(conn: Conn, user_id: object, memory_id: str, content: str) -> None:
+    conn.execute(
+        "insert into public.memories (id, user_id, type, scope, repo, branch, content, embedding,"
+        " confidence, source_session_ids, created_at, updated_at) values (%s, %s, 'convention',"
+        " 'repo', 'acme/api', 'main', %s, array_fill(0.1::real, array[1536])::extensions.vector,"
+        " 0.8, '{}', %s, %s)",
+        (memory_id, user_id, content, FIXED_NOW, FIXED_NOW),
+    )
+
+
+def test_profile_cursor_keeps_tied_timestamps(device: Device, service_conn: Conn) -> None:
+    ids = [f"00000000-0000-4000-8000-00000000000{n}" for n in range(1, 5)]
+    for n, memory_id in enumerate(ids[:3]):
+        _insert_memory(service_conn, device.user_id, memory_id, f"tied rule {n}")
+    assert rebuild_profile(service_conn, device.user_id, "acme/api", FakeLlm(), FIXED_NOW) == 3
+    cursor = service_conn.execute(
+        "select memories_through, memories_through_id::text from public.project_profiles"
+    ).fetchone()
+    assert cursor == (FIXED_NOW, ids[2])
+
+    # Same timestamp as the cursor, larger id: a timestamp-only `>` cursor would skip it.
+    _insert_memory(service_conn, device.user_id, ids[3], "tied rule late")
+    assert rebuild_profile(service_conn, device.user_id, "acme/api", FakeLlm(), FIXED_NOW) == 1
+    contents = {
+        r[0]
+        for r in service_conn.execute(
+            "select content from public.project_profile_entries where retired_at is null"
+        ).fetchall()
+    }
+    assert contents == {"tied rule 0", "tied rule 1", "tied rule 2", "tied rule late"}
+    assert rebuild_profile(service_conn, device.user_id, "acme/api", FakeLlm(), FIXED_NOW) == 0

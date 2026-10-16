@@ -34,12 +34,14 @@ class MemoryOut(_Response):
     scope: str | None = None
     content: str
     confidence: float
+    disputed: bool = False
 
 
 class ProfileEntryOut(_Response):
     section: str
     content: str
     confidence: float
+    disputed: bool = False
 
 
 class ProfileOut(_Response):
