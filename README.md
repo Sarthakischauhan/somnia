@@ -365,6 +365,8 @@ OpenAI-compatible endpoint. Embeddings must be 1536-d. The `dimensions` paramete
 
 ## Development
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full local setup, checks, migrations, plugin testing and the PR flow.
+
 ```bash
 uv run ruff check . && uv run ruff format --check .
 uv run mypy                               # strict
