@@ -53,7 +53,14 @@ class SomniaClient:
         return StatusOut.model_validate(response.json())
 
     def context(
-        self, repo: str, branch: str, token_budget: int, k: int, query: str | None
+        self,
+        repo: str,
+        branch: str,
+        token_budget: int,
+        k: int,
+        query: str | None,
+        *,
+        checkpoint_first: bool = False,
     ) -> ContextOut:
         params: dict[str, str | int] = {
             "repo": repo,
@@ -61,6 +68,8 @@ class SomniaClient:
             "token_budget": token_budget,
             "k": k,
         }
+        if checkpoint_first:
+            params["checkpoint_first"] = "true"
         if query:
             params["query"] = query
         response = self._http.get("/v1/context", params=params)

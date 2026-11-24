@@ -1455,6 +1455,7 @@ export interface operations {
                 token_budget?: number | null;
                 k?: number;
                 query?: string | null;
+                checkpoint_first?: boolean;
             };
             header?: {
                 authorization?: string | null;

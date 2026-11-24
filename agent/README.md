@@ -3,6 +3,18 @@
 Harness-side CLI for somnia. One typed package (mypy strict, `httpx` + `pydantic`, optional `mcp`)
 used by the Claude Code, Codex and Grok Build integrations under [`plugins/`](../plugins).
 
+## Resume on another agent
+
+Somnia saves a rolling checkpoint after completed tools and assistant turns from its
+installed hooks. Check **Session handoffs** in the dashboard. On the receiving device,
+log in to the same Somnia account, open the same repo and branch, and run
+`somnia-agent resume` or ask your agent to run it. The checkpoint includes the goal,
+last recorded result, file paths and Git ref. Use the same worktree or transfer local
+changes before switching machines.
+
+[Install the Symphony addon](../plugins/symphony/README.md) for automatic capture and the
+`somnia_resume` tool.
+
 ## Install
 
 ```bash
@@ -28,14 +40,15 @@ lives only in the worker. **Gap:** the service has no device-code flow yet, so t
 
 | Command | Used by | Behaviour |
 | --- | --- | --- |
-| `ingest --harness H` | PostToolUse, UserPromptSubmit, Stop, SessionEnd hooks | Reads hook JSON on stdin, redacts secrets, appends to the local spool with a per-session `seq` (flock), then spawns a detached uploader and exits. Hard deadline (default 1.5 s, `--timeout`), always exit 0. |
-| `checkpoint --harness H` | PreCompact (and SessionEnd) | Same as ingest, plus queues a checkpoint built from the spool (goal = first prompt, state = last assistant message, files touched). |
+| `ingest --harness H` | PostToolUse, UserPromptSubmit, Stop, SessionEnd hooks | Reads hook JSON on stdin, redacts secrets, appends to the local spool with a per-session `seq` (flock), queues a checkpoint on tool or assistant completion, then spawns a detached uploader and exits. Hard deadline (default 1.5 s, `--timeout`), always exit 0. |
+| `checkpoint --harness H` | PreCompact (and SessionEnd) | Same as ingest, plus queues a checkpoint built from the spool (goal = first prompt, state = last assistant message or tool outcome, files touched). |
 | `context --harness H` | SessionStart, Codex UserPromptSubmit | Fetches `/v1/context` for the repo/branch within `--token-budget` (tiktoken-counted server-side) and prints the harness's `additionalContext` JSON. Prints nothing on any failure; deadline 2 s. |
+| `resume [--cwd PATH]` | agents and operators | Reads the checkpoint and memory for the git checkout. |
 | `flush` | the detached uploader | Uploads unsent events; safe to run any time. |
 | `login` | you | See above. |
 | `mcp` | MCP clients | stdio server with `search_memory`, `status`, `continue_session`. |
 
-`H` is `claude-code`, `codex` or `grok`, and every shipped hook passes it explicitly. Grok Build
+`H` is `claude-code`, `codex`, `grok` or `symphony`, and every shipped hook passes it explicitly. Grok Build
 also runs Claude Code plugin hooks. It sets `GROK_HOOK_EVENT` for every hook process
 (https://docs.x.ai/build/features/hooks), so a `--harness claude-code` hook that sees that variable
 no-ops (exit 0, no spool write, no stdout) and the Grok plugin does the ingest.

@@ -23,10 +23,12 @@ def _client_context(query: str | None, token_budget: int, k: int, *, with_checkp
         return NOT_CONFIGURED
     git = detect(Path.cwd())
     with make_http(config, HTTP_TIMEOUT) as http:
-        context = SomniaClient(http).context(git.repo, git.branch, token_budget, k, query)
+        context = SomniaClient(http).context(
+            git.repo, git.branch, token_budget, k, query, checkpoint_first=with_checkpoint
+        )
     if not with_checkpoint:
         context = context.model_copy(update={"checkpoint": None})
-    rendered = render_context(context)
+    rendered = render_context(context, checkpoint_first=with_checkpoint)
     return rendered or f"No somnia memory yet for {git.repo}@{git.branch}."
 
 
@@ -61,7 +63,7 @@ def status() -> str:
                 remote = SomniaClient(http).session_status(meta.somnia_session_id)
             line += (
                 f"; somnia {remote.session.id} {remote.session.status},"
-                f" {remote.unprocessed_events} not yet dreamt"
+                f" {remote.unprocessed_events} not yet indexed"
             )
         lines.append(line)
     if len(lines) == 1:

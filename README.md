@@ -12,6 +12,18 @@ an MCP server). Any other agent that can send HTTP can use the [API](#api-refere
 
 To run it locally, start at [Setup](#setup).
 
+## Resume on another agent
+
+Somnia saves a rolling checkpoint after completed tools and assistant turns from its
+installed hooks. Check **Session handoffs** in the dashboard. On the receiving device,
+log in to the same Somnia account, open the same repo and branch, and run
+`somnia-agent resume` or ask your agent to run it. The checkpoint includes the goal,
+last recorded result, file paths and Git ref. Use the same worktree or transfer local
+changes before switching machines.
+
+[Install the Symphony addon](plugins/symphony/README.md) for automatic capture and the
+`somnia_resume` tool.
+
 ## How a turn becomes memory
 
 1. The agent sends `Authorization: Bearer smn_…`. The API hashes the token, resolves the

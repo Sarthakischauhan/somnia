@@ -39,10 +39,10 @@ def test_claude_session_start_additional_context(fake_api: FakeApi) -> None:
     text = _additional_context(done.stdout, "SessionStart")
     _assert_wrapped(text)
     assert "goal: Ship the uploader" in text
-    # Server priority order is preserved: profile, then checkpoint, then memories / chunks.
+    # Session start prioritizes the checkpoint, then profile, memories and chunks.
     order = [
-        text.index("stack: FastAPI on Postgres"),
         text.index("goal: Ship the uploader"),
+        text.index("stack: FastAPI on Postgres"),
         text.index("Tests need SOMNIA_TEST_DATABASE_URL"),
         text.index("[recent session note, not yet consolidated] [message:user] try the staging"),
     ]

@@ -36,12 +36,14 @@ def build_context_router(
         token_budget: Annotated[int | None, Query(ge=1, le=200_000)] = None,
         k: Annotated[int, Query(ge=1, le=100)] = 10,
         query: Annotated[str | None, Query()] = None,
+        checkpoint_first: bool = False,
     ) -> SessionContext:
         request = ContextRequest(
             repo=repo,
             branch=branch,
             k=k,
             query=query,
+            checkpoint_first=checkpoint_first,
             token_budget=token_budget or settings.default_token_budget,
         )
         weights = RetrievalWeights(

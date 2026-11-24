@@ -7,6 +7,7 @@ must never block or break the coding agent. Uploads happen in a detached flusher
 import json
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 from somnia_agent.api_client import SomniaClient, make_http
 from somnia_agent.config import load_config
@@ -15,11 +16,13 @@ from somnia_agent.deadline import DeadlineExceededError, hard_deadline, read_std
 from somnia_agent.git_info import detect
 from somnia_agent.harness_payloads import Harness, HookEvent, parse_hook
 from somnia_agent.hook_output import context_stdout, ingest_stdout
-from somnia_agent.spool import write_atomic
+from somnia_agent.spool import locked, write_atomic
 from somnia_agent.spool_hook import spool_hook
 from somnia_agent.uploader import CHECKPOINT_MARKER, CLOSE_MARKER, spawn_flush
 
-_CHECKPOINT_EVENTS = frozenset({"PreCompact", "SessionEnd"})
+_CHECKPOINT_EVENTS = frozenset(
+    {"PostToolUse", "PostToolUseFailure", "Stop", "PreCompact", "SessionEnd"}
+)
 _INJECTED_FILE = "injected.json"
 
 
@@ -27,6 +30,11 @@ def _emit(text: str) -> None:
     if text:
         sys.stdout.write(text + "\n")
         sys.stdout.flush()
+
+
+def _queue_checkpoint(directory: Path, reason: str) -> None:
+    with locked(directory / "spool.lock"):
+        write_atomic(directory / CHECKPOINT_MARKER, f"{uuid4()}\n{reason}")
 
 
 def run_ingest(harness: Harness, timeout_seconds: float) -> int:
@@ -37,7 +45,7 @@ def run_ingest(harness: Harness, timeout_seconds: float) -> int:
             event = hook.event
             directory = spool_hook(hook)
             if event in _CHECKPOINT_EVENTS:
-                write_atomic(directory / CHECKPOINT_MARKER, event)
+                _queue_checkpoint(directory, event)
             if event == "SessionEnd":
                 write_atomic(directory / CLOSE_MARKER, event)
             spawn_flush()
@@ -54,7 +62,7 @@ def run_checkpoint(harness: Harness, timeout_seconds: float, reason: str | None)
             hook = parse_hook(harness, read_stdin())
             event = hook.event
             directory = spool_hook(hook)
-            write_atomic(directory / CHECKPOINT_MARKER, reason or event)
+            _queue_checkpoint(directory, reason or event)
             spawn_flush()
     except (DeadlineExceededError, Exception):
         pass
@@ -78,8 +86,16 @@ def context_for(hook: HookEvent, token_budget: int, k: int, http_timeout: float)
     if hook.prompt:
         spawn_flush()
     git = detect(Path(hook.cwd or "."))
+    checkpoint_first = hook.event == "SessionStart"
     with make_http(config, http_timeout) as http:
-        context = SomniaClient(http).context(git.repo, git.branch, token_budget, k, hook.prompt)
+        context = SomniaClient(http).context(
+            git.repo,
+            git.branch,
+            token_budget,
+            k,
+            hook.prompt,
+            checkpoint_first=checkpoint_first,
+        )
     if hook.event == "UserPromptSubmit":
         # Per-prompt retrieval: profile and checkpoint came at SessionStart; only add
         # memories not already injected this session.
@@ -88,7 +104,7 @@ def context_for(hook: HookEvent, token_budget: int, k: int, http_timeout: float)
         text = render_context(fresh, frozenset(seen))
     else:
         seen = set()
-        text = render_context(context)
+        text = render_context(context, checkpoint_first=checkpoint_first)
     seen.update(m.id for m in context.memories)
     write_atomic(directory / _INJECTED_FILE, json.dumps(sorted(seen)))
     return text

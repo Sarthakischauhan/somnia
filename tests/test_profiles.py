@@ -224,3 +224,23 @@ def test_profile_cursor_keeps_tied_timestamps(device: Device, service_conn: Conn
     }
     assert contents == {"tied rule 0", "tied rule 1", "tied rule 2", "tied rule late"}
     assert rebuild_profile(service_conn, device.user_id, "acme/api", FakeLlm(), FIXED_NOW) == 0
+
+
+def test_resume_reserves_budget_for_checkpoint(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    session = post_session(client, device, ["remember: the api uses postgres and pgvector"])
+    _dream(service_conn, FakeLlm())
+    draft = {"goal": "finish retry tests", "state": "one test still failing"}
+    saved = client.post(f"/v1/sessions/{session}/checkpoints", headers=device.headers, json=draft)
+    assert saved.status_code == 201, saved.text
+    budget = COUNTER.count("goal: finish retry tests\nstate: one test still failing")
+    params = {"repo": "acme/api", "branch": "main", "token_budget": str(budget)}
+    default = client.get("/v1/context", headers=device.headers, params=params)
+    resume = client.get(
+        "/v1/context", headers=device.headers, params={**params, "checkpoint_first": "true"}
+    )
+    assert default.status_code == resume.status_code == 200
+    assert default.json()["checkpoint"] is None
+    assert resume.json()["checkpoint"]["id"] == saved.json()["id"]
+    assert resume.json()["tokens_used"] == budget

@@ -1,0 +1,6 @@
+{
+  "name": "somnia",
+  "version": "0.1.0",
+  "description": "Share coding handoffs with Somnia across agent sessions",
+  "extensions": {"symphony": {"addons": "./addons"}}
+}

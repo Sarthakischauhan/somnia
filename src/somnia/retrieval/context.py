@@ -32,6 +32,7 @@ class ContextRequest(BaseModel):
     token_budget: int
     k: int
     query: str | None = None
+    checkpoint_first: bool = False
 
 
 class RetrievalWeights(BaseModel):
@@ -119,8 +120,14 @@ def build_session_context(
         weights.candidate_pool,
     )
     entries = _profile_entries(profile, disputes)
+    checkpoint_cost = counter.count(checkpoint_text(checkpoint)) if checkpoint else 0
+    reserve = (
+        checkpoint_cost
+        if request.checkpoint_first and checkpoint_cost <= request.token_budget
+        else 0
+    )
     packed_profile = pack_under_budget(
-        entries, [entry_text(e) for e in entries], request.token_budget, counter
+        entries, [entry_text(e) for e in entries], request.token_budget, counter, reserve
     )
     in_profile = frozenset(
         e.source_memory_id for e in packed_profile.items if e.source_memory_id is not None
@@ -140,10 +147,9 @@ def build_session_context(
     )
     used = packed_profile.tokens_used
     dropped = packed_profile.dropped
-    if checkpoint is not None:
-        cost = counter.count(checkpoint_text(checkpoint))
-        if used + cost <= request.token_budget:
-            used += cost
+    if checkpoint is not None and not reserve:
+        if used + checkpoint_cost <= request.token_budget:
+            used += checkpoint_cost
         else:
             checkpoint, dropped = None, dropped + 1
     packed_items = pack_under_budget(

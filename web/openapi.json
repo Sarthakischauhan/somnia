@@ -2830,6 +2830,16 @@
             }
           },
           {
+            "in": "query",
+            "name": "checkpoint_first",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Checkpoint First",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,

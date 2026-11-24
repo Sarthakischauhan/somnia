@@ -24,7 +24,7 @@ const NAV = [
   { href: "/memories", label: "Memories", icon: Brain },
   { href: "/conflicts", label: "Conflicts", icon: GitCompareArrows },
   { href: "/dreaming", label: "Dreaming", icon: DreamIcon },
-  { href: "/sessions", label: "Sessions / Checkpoints", icon: History },
+  { href: "/sessions", label: "Session handoffs", icon: History },
 ] as const;
 
 export function AppSidebar() {

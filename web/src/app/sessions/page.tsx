@@ -1,3 +1,4 @@
+import { ResumeHandoff } from "@/components/resume-handoff";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -30,45 +31,60 @@ export default async function SessionsPage() {
     <div className="space-y-8">
       <section className="space-y-4">
         <div>
-          <h1 className="text-2xl font-semibold">Sessions &amp; checkpoints</h1>
-          <p className="text-sm text-muted-foreground">Latest checkpoint for each repo and branch.</p>
+          <h1 className="text-2xl font-semibold">Session handoffs</h1>
+          <p className="text-sm text-muted-foreground">
+            Open the same repo and branch in another agent to pick up a saved checkpoint.
+          </p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {checkpoints.map((cp) => (
             <Card key={cp.id}>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between gap-2 text-base">
-                  <span>
-                    {cp.repo} @ {cp.branch}
-                  </span>
-                  <span className="flex gap-1">
-                    <Badge variant={cp.status === "open" ? "default" : "outline"}>{cp.status}</Badge>
-                    <Badge variant="outline">{cp.source}</Badge>
-                  </span>
+                <CardTitle className="flex flex-wrap items-start justify-between gap-2 text-base">
+                  <span className="break-all">{cp.repo}</span>
+                  <Badge variant="outline" className="font-mono">{cp.branch}</Badge>
                 </CardTitle>
                 <CardDescription>
-                  {formatDateTime(cp.created_at)}
-                  {cp.git_ref ? ` · ${cp.git_ref}` : ""}
-                  {cp.pushed ? " · pushed" : ""}
+                  {cp.source === "agent" ? "Agent checkpoint" : "Dream checkpoint"}
+                  {" · "}{formatDateTime(cp.created_at)}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <p>
-                  <span className="font-medium">Goal:</span> {cp.goal}
-                </p>
-                <p>
-                  <span className="font-medium">State:</span> {cp.state}
-                </p>
+              <CardContent className="space-y-4 text-sm">
+                <div>
+                  <h2 className="font-medium">{cp.goal}</h2>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                    {cp.state}
+                  </p>
+                </div>
                 {cp.next_steps.length > 0 && (
-                  <ul className="list-disc pl-5 text-muted-foreground">
-                    {cp.next_steps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ul>
+                  <div>
+                    <h3 className="font-medium">Next steps</h3>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-muted-foreground">
+                      {cp.next_steps.map((step, index) => <li key={index}>{step}</li>)}
+                    </ul>
+                  </div>
                 )}
                 {cp.files_touched.length > 0 && (
-                  <p className="font-mono text-xs text-muted-foreground">{cp.files_touched.join(", ")}</p>
+                  <div>
+                    <h3 className="font-medium">Files touched</h3>
+                    <ul className="mt-1 space-y-1 break-all font-mono text-xs text-muted-foreground">
+                      {cp.files_touched.map((file, index) => <li key={index}>{file}</li>)}
+                    </ul>
+                  </div>
                 )}
+                <div className="space-y-2 border-t pt-3">
+                  {cp.git_ref && (
+                    <p className="text-xs text-muted-foreground">
+                      Git ref <code>{cp.git_ref}</code>{cp.pushed ? " · pushed" : ""}
+                    </p>
+                  )}
+                  {!cp.pushed && (
+                    <p className="text-xs text-muted-foreground">
+                      If changes are local, use the original worktree or transfer the changes first.
+                    </p>
+                  )}
+                  {cp.status === "open" && <ResumeHandoff />}
+                </div>
               </CardContent>
             </Card>
           ))}

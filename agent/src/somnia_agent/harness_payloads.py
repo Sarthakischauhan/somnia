@@ -14,6 +14,7 @@ class Harness(StrEnum):
     CLAUDE_CODE = "claude-code"
     CODEX = "codex"
     GROK = "grok"
+    SYMPHONY = "symphony"
 
 
 class HookEvent(BaseModel):
@@ -44,6 +45,7 @@ class SnakeCasePayload(_Lenient):
     tool_response: JsonValue = None
     prompt: str | None = None
     last_assistant_message: str | None = None
+    tool_failed: bool = False
 
 
 class GrokPayload(_Lenient):
@@ -86,7 +88,7 @@ def parse_hook(harness: Harness, raw: bytes) -> HookEvent:
         tool_name=snake.tool_name,
         tool_input=snake.tool_input,
         tool_output=snake.tool_response,
-        tool_failed=snake.hook_event_name == "PostToolUseFailure",
+        tool_failed=snake.tool_failed or snake.hook_event_name == "PostToolUseFailure",
         prompt=snake.prompt,
         assistant_message=snake.last_assistant_message,
     )
