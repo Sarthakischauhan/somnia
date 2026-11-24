@@ -17,7 +17,7 @@ def dream_users(conn: Conn) -> list[UUID]:
     """Users with sessions to consolidate or active memories that may decay."""
     rows = conn.execute(
         "select s.user_id from public.sessions s where exists (select 1 from public.events e"
-        "   where e.session_id = s.id and e.seq > s.dreamed_through_seq)"
+        "   where e.session_id = s.id and not e.dreamed)"
         " union select m.user_id from public.memories m"
         "   where m.superseded_by is null and m.archived_at is null"
         " order by 1"
@@ -85,6 +85,8 @@ def _dream_for_user(
     counts = DreamCounts()
     try:
         with conn.transaction():
+            # Repo-triggered and scheduled runs can otherwise reconcile the same user in parallel.
+            conn.execute("select pg_advisory_xact_lock(hashtextextended(%s, 0))", (str(user_id),))
             for session in sessions_needing_dream(conn, user_id, repo):
                 consolidate_session(conn, session, llm, embedder, policy, counts, now)
             counts.memories_decayed = decay_unused(

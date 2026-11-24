@@ -59,13 +59,14 @@ def _item_line(item: MemoryOut) -> str:
     )
 
 
-def render_context(context: ContextOut, skip_ids: frozenset[str] = frozenset()) -> str | None:
+def render_context(
+    context: ContextOut, skip_ids: frozenset[str] = frozenset(), *, checkpoint_first: bool = False
+) -> str | None:
     """Profile first, then the checkpoint, then memories / recent chunks (server order)."""
     body: list[str] = []
-    if context.profile is not None and context.profile.entries:
-        body.extend(_profile_lines(context.profile))
-    if context.checkpoint is not None:
-        body.extend(_checkpoint_lines(context.checkpoint))
+    profile = _profile_lines(context.profile) if context.profile and context.profile.entries else []
+    checkpoint = _checkpoint_lines(context.checkpoint) if context.checkpoint else []
+    body.extend(checkpoint + profile if checkpoint_first else profile + checkpoint)
     body.extend(_item_line(item) for item in context.memories if item.id not in skip_ids)
     if not body:
         return None

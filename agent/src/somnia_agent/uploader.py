@@ -76,19 +76,23 @@ def flush_session(client: SomniaClient, directory: Path) -> None:
     if meta is None or not _pending(directory):
         return
     session_id = _ensure_remote_session(client, directory, meta)
-    events = read_events(directory)
+    marker = directory / CHECKPOINT_MARKER
+    with locked(directory / "spool.lock"):
+        events = read_events(directory)
+        pending = marker.read_text(encoding="utf-8") if marker.exists() else None
     unsent = [e for e in events if e.seq > acked_seq(directory)]
     for start in range(0, len(unsent), BATCH_SIZE):
         batch = unsent[start : start + BATCH_SIZE]
         client.post_events(session_id, batch)
         set_acked(directory, batch[-1].seq)
-    marker = directory / CHECKPOINT_MARKER
-    if marker.exists():
+    if pending is not None:
         refreshed = read_meta(directory) or meta
-        reason = marker.read_text(encoding="utf-8").strip() or "hook"
+        reason = pending.rsplit("\n", 1)[-1].strip() or "hook"
         draft = build_checkpoint(events, reason, refreshed.repo or "repo", refreshed.git_ref)
         client.post_checkpoint(session_id, draft)
-        marker.unlink()
+        with locked(directory / "spool.lock"):
+            if marker.read_text(encoding="utf-8") == pending:
+                marker.unlink()
     close = directory / CLOSE_MARKER
     if close.exists():
         client.close_session(session_id)

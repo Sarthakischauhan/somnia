@@ -42,20 +42,26 @@ class ChunkCandidateRow(BaseModel):
 
 
 def undreamt_chunks(
-    conn: Conn, vector: str, repo: str, memory_ids: Sequence[UUID], limit: int
+    conn: Conn, vector: str, repo: str, branch: str, memory_ids: Sequence[UUID], limit: int
 ) -> list[ChunkCandidateRow]:
-    """Chunks of events past their session's dream watermark (RLS-scoped)."""
+    """Chunks of undreamt events on the requested branch (RLS-scoped)."""
+    # Rank only eligible chunks. A global HNSW scan can exhaust its candidates on
+    # already-dreamt events, other branches or other users before finding a match.
     with conn.cursor(row_factory=class_row(ChunkCandidateRow)) as cur:
         cur.execute(
-            "select c.id, c.session_id, c.content, c.created_at,"
-            " 1 - (c.embedding <=> %(v)s::extensions.vector) as similarity,"
+            "with eligible_events as materialized ("
+            " select e.id from public.events e join public.sessions s on s.id = e.session_id"
+            " where s.repo = %(repo)s and s.branch = %(branch)s and not e.dreamed"
+            "), ranked as materialized ("
+            " select c.id, c.session_id, c.content, c.created_at, c.embedding,"
+            " c.embedding <=> %(v)s::extensions.vector as distance"
+            " from eligible_events e join public.chunks c on c.event_id = e.id"
+            " order by distance, c.id limit %(limit)s"
+            ") select c.id, c.session_id, c.content, c.created_at, 1 - c.distance as similarity,"
             " coalesce((select max(1 - (m.embedding <=> c.embedding)) from public.memories m"
             "   where m.id = any(%(mids)s)), 0) as memory_overlap"
-            " from public.chunks c join public.events e on e.id = c.event_id"
-            " join public.sessions s on s.id = c.session_id"
-            " where s.repo = %(repo)s and e.seq > s.dreamed_through_seq"
-            " order by c.embedding <=> %(v)s::extensions.vector limit %(limit)s",
-            {"v": vector, "repo": repo, "mids": list(memory_ids), "limit": limit},
+            " from ranked c order by c.distance, c.id",
+            {"v": vector, "repo": repo, "branch": branch, "mids": list(memory_ids), "limit": limit},
         )
         return cur.fetchall()
 

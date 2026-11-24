@@ -54,3 +54,7 @@ warn_required_dynamic_aliases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["db: requires a real Postgres with pgvector (SOMNIA_TEST_DATABASE_URL)"]
+
+[[tool.mypy.overrides]]
+module = "pixeltable"
+ignore_missing_imports = true

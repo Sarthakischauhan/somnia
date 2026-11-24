@@ -10,7 +10,7 @@ from somnia_agent.redaction import redact_json, redact_text
 
 MAX_TOOL_OUTPUT_CHARS = 8000
 EventKind = Literal["message", "tool_call", "files_touched", "git_ref"]
-_PATH_KEYS = ("file_path", "path", "notebook_path")
+_PATH_KEYS = ("file_path", "path", "notebook_path", "target_file")
 
 
 class EventBody(BaseModel):

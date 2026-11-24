@@ -2,6 +2,7 @@
 
 import argparse
 from collections.abc import Sequence
+from pathlib import Path
 
 from somnia_agent.config import DEFAULT_API_URL
 from somnia_agent.flush_command import run_flush
@@ -9,6 +10,7 @@ from somnia_agent.harness_payloads import Harness
 from somnia_agent.hook_commands import run_checkpoint, run_context, run_ingest
 from somnia_agent.host_detection import hosted_by_another_harness
 from somnia_agent.login_command import run_login
+from somnia_agent.resume_command import run_resume
 
 DEFAULT_HOOK_TIMEOUT = 1.5
 DEFAULT_CONTEXT_TIMEOUT = 2.0
@@ -39,6 +41,9 @@ def build_parser() -> argparse.ArgumentParser:
     login.add_argument("--token", default=None, help="omit to be prompted")
     login.add_argument("--no-verify", action="store_true")
 
+    resume = commands.add_parser("resume", help="read the saved handoff for this checkout")
+    resume.add_argument("--cwd", type=Path, default=Path.cwd())
+
     commands.add_parser("flush", help="upload spooled events now")
     commands.add_parser("mcp", help="run the stdio MCP server (needs the [mcp] extra)")
     return parser
@@ -59,6 +64,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return run_context(Harness(args.harness), args.timeout, args.token_budget, args.k)
     if command == "login":
         return run_login(args.api_url, args.token, verify=not args.no_verify)
+    if command == "resume":
+        return run_resume(args.cwd)
     if command == "flush":
         return run_flush()
     from somnia_agent.mcp_server import run_mcp  # optional dependency

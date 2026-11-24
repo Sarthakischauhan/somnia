@@ -73,3 +73,50 @@ def test_spool_files_are_private(agent_env: dict[str, str]) -> None:
     (events,) = Path(agent_env["SOMNIA_AGENT_STATE"]).rglob("events.jsonl")
     assert os.stat(events).st_mode & 0o777 == 0o600
     assert json.loads(events.read_text().splitlines()[0])["seq"] == 1
+
+
+def test_open_session_checkpoint_captures_last_tool(fake_api: FakeApi) -> None:
+    for event, fields in (
+        ("UserPromptSubmit", {"prompt": "Fix the ledger retry"}),
+        (
+            "PostToolUse",
+            {
+                "tool_name": "pytest",
+                "tool_input": {"path": "tests/test_ledger.py"},
+                "tool_response": "One assertion failed in the retry test.",
+                "tool_failed": True,
+            },
+        ),
+    ):
+        data = {"session_id": "symphony-run", "hook_event_name": event, **fields}
+        done = run_cli(["ingest", "--harness", "symphony"], json.dumps(data).encode())
+        assert done.returncode == 0
+    assert run_cli(["flush"], b"").returncode == 0
+    (checkpoint,) = fake_api.state.checkpoints
+    assert checkpoint["goal"] == "Fix the ledger retry"
+    assert (
+        checkpoint["state"] == "Last tool failed: pytest\nOne assertion failed in the retry test."
+    )
+    assert checkpoint["files_touched"] == ["tests/test_ledger.py"]
+    assert not fake_api.state.closed
+
+
+def test_checkpoint_enqueued_during_upload_is_kept(
+    fake_api: FakeApi,
+) -> None:
+    from somnia_agent.api_models import CheckpointIn
+
+    args = ["ingest", "--harness", "codex"]
+    run_cli(args, fixture_bytes("codex", "user_prompt_submit"))
+    run_cli(args, fixture_bytes("codex", "post_tool_use"))
+
+    class UploadWithNewProgress(SomniaClient):
+        def post_checkpoint(self, session_id: str, draft: CheckpointIn) -> None:
+            super().post_checkpoint(session_id, draft)
+            if len(fake_api.state.checkpoints) == 1:
+                run_cli(args, fixture_bytes("codex", "stop"))
+
+    with _client(fake_api) as http:
+        assert flush_all(UploadWithNewProgress(http))
+    assert len(fake_api.state.checkpoints) == 2
+    assert fake_api.state.checkpoints[-1]["state"] == "Retries added with exponential backoff."

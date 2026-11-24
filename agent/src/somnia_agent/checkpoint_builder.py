@@ -19,14 +19,23 @@ def build_checkpoint(
     events: list[SpooledEvent], reason: str, repo: str, git_ref: str | None
 ) -> CheckpointIn:
     user_messages = [m for e in events if (m := _message(e, "user"))]
-    assistant_messages = [m for e in events if (m := _message(e, "assistant"))]
     files: list[str] = []
     for event in events:
         paths = event.payload.get("paths") if event.kind == "files_touched" else None
         if isinstance(paths, list):
             files.extend(p for p in paths if isinstance(p, str) and p not in files)
     goal = user_messages[0] if user_messages else f"Continue work in {repo}"
-    state = assistant_messages[-1] if assistant_messages else f"Session checkpointed ({reason})."
+    state = f"Session checkpointed ({reason})."
+    for event in reversed(events):
+        if assistant := _message(event, "assistant"):
+            state = assistant
+            break
+        if event.kind == "tool_call":
+            outcome = "failed" if event.payload.get("is_error") else "completed"
+            state = f"Last tool {outcome}: {event.payload.get('name', 'unknown')}"
+            if output := event.payload.get("output"):
+                state += f"\n{output}"
+            break
     next_steps = [f"Latest request: {user_messages[-1][:GOAL_CHARS]}"] if user_messages else []
     return CheckpointIn(
         goal=goal[:GOAL_CHARS],

@@ -12,6 +12,18 @@ an MCP server). Any other agent that can send HTTP can use the [API](#api-refere
 
 To run it locally, start at [Setup](#setup).
 
+## Resume on another agent
+
+Somnia saves a rolling checkpoint after completed tools and assistant turns from its
+installed hooks. Check **Session handoffs** in the dashboard. On the receiving device,
+log in to the same Somnia account, open the same repo and branch, and run
+`somnia-agent resume` or ask your agent to run it. The checkpoint includes the goal,
+last recorded result, file paths and Git ref. Use the same worktree or transfer local
+changes before switching machines.
+
+[Install the Symphony addon](plugins/symphony/README.md) for automatic capture and the
+`somnia_resume` tool.
+
 ## How a turn becomes memory
 
 1. The agent sends `Authorization: Bearer smn_…`. The API hashes the token, resolves the
@@ -123,7 +135,9 @@ Greedy packing keeps the checkpoint, then as many top-k memories as fit in `toke
 Tokens are counted with tiktoken using the configured encoding (`SOMNIA_TOKEN_ENCODING`:
 `o200k_base`, `cl100k_base`, `p50k_base`, or `r50k_base`; default `o200k_base`). There is
 no character heuristic. The response echoes `token_encoding` and the exact `tokens_used`.
-Returned memories get `last_used_at` refreshed and `use_count` incremented.
+Returned memories, including those served through the project profile, get `last_used_at`
+refreshed and `use_count` incremented. Undreamt chunks are searched within the requested
+branch.
 
 ### Dreaming
 
@@ -133,9 +147,11 @@ the migration when the extension is enabled.
 
 For each session with new events:
 
-1. **Summarize** the redacted transcript into a goal, state, next steps, files, and memory
-   candidates. Write a checkpoint, closing the previous open one for that repo and branch.
-2. **Dedupe** against the nearest active memory in the same scope. Below
+1. **Summarize** the redacted transcript of events that have yet to be dreamt into a goal,
+   state, next steps, files, and memory candidates. Write a checkpoint, closing the previous
+   open one for that repo and branch. Each event is marked dreamt in the same transaction.
+2. **Dedupe** exact matches of the same type and scope without calling the model. For other
+   candidates, compare against the nearest active memory in the same scope. Below
    `similarity_threshold`, **add** a new memory. Otherwise the LLM chooses **merge** (update
    in place, raise confidence, union `source_session_ids`) or **supersede** (new row
    inherits provenance, and the old row gets `superseded_by`).
@@ -378,6 +394,9 @@ DB tests create a throwaway database, apply `tests/sql/supabase_shim.sql` (stand
 Supabase's `auth` schema and roles; a no-op on real Supabase) plus the real migrations, and
 drop it afterwards. Without `SOMNIA_TEST_DATABASE_URL` they are skipped locally and fail in
 CI.
+
+See [the memory benchmark](benchmarks/README.md) for reproduction instructions and
+measured results across 100, 1,000, and 10,000 events.
 
 ## Known gaps
 

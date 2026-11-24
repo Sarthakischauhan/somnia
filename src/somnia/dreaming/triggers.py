@@ -12,10 +12,7 @@ from uuid import UUID
 
 from somnia.db.connection import Conn
 
-_UNDREAMT = (
-    "exists (select 1 from public.events e where e.session_id = s.id"
-    " and e.seq > s.dreamed_through_seq)"
-)
+_UNDREAMT = "exists (select 1 from public.events e where e.session_id = s.id and not e.dreamed)"
 # A sweep runs every worker tick: skip repos that already have a run queued or running.
 _NOT_IN_FLIGHT = (
     "not exists (select 1 from public.dream_runs r where r.user_id = s.user_id"
@@ -50,7 +47,7 @@ def enqueue_chunk_thresholds(conn: Conn, threshold: int) -> list[UUID]:
         "select s.user_id, s.repo from public.chunks c"
         " join public.events e on e.id = c.event_id"
         " join public.sessions s on s.id = c.session_id"
-        " where e.seq > s.dreamed_through_seq and "
+        " where not e.dreamed and "
         + _NOT_IN_FLIGHT
         + " group by s.user_id, s.repo having count(*) >= %s",
         (threshold,),
