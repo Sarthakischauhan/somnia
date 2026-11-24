@@ -9,6 +9,7 @@ from pydantic import BaseModel, JsonValue
 from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
 from somnia.dreaming.memory_store import (
+    identical_active,
     insert_memory,
     merge_into,
     nearest_active,
@@ -31,10 +32,10 @@ class SessionToDream(BaseModel):
     repo: str
     branch: str
     git_ref: str | None
-    dreamed_through_seq: int
 
 
 class _RawEvent(BaseModel):
+    id: int
     seq: int
     kind: str
     payload: dict[str, JsonValue]
@@ -46,11 +47,11 @@ def sessions_needing_dream(
     """`repo` limits an event-triggered run to that repo; None means every repo."""
     with conn.cursor(row_factory=class_row(SessionToDream)) as cur:
         cur.execute(
-            "select s.id, s.user_id, s.repo, s.branch, s.git_ref, s.dreamed_through_seq"
+            "select s.id, s.user_id, s.repo, s.branch, s.git_ref"
             " from public.sessions s where s.user_id = %s"
             " and (%s::text is null or s.repo = %s::text) and exists (select 1"
-            "   from public.events e where e.session_id = s.id and e.seq > s.dreamed_through_seq)"
-            " order by s.started_at for update of s skip locked",
+            "   from public.events e where e.session_id = s.id and not e.dreamed)"
+            " order by s.started_at for no key update of s skip locked",
             (user_id, repo, repo),
         )
         return cur.fetchall()
@@ -67,14 +68,14 @@ def consolidate_session(
 ) -> None:
     with conn.cursor(row_factory=class_row(_RawEvent)) as cur:
         cur.execute(
-            "select seq, kind, payload from public.events where session_id = %s and seq > %s"
+            "select id, seq, kind, payload from public.events where session_id = %s and not dreamed"
             " order by seq",
-            (session.id, session.dreamed_through_seq),
+            (session.id,),
         )
         raw = cur.fetchall()
     if not raw:
         return
-    events = [EVENT_ADAPTER.validate_python(r.model_dump()) for r in raw]
+    events = [EVENT_ADAPTER.validate_python(r.model_dump(exclude={"id"})) for r in raw]
     transcript = redact_secrets("\n".join(render_event(e) for e in events)).text
     digest = llm.summarize_session(transcript)
     pushed = any(isinstance(e, GitRefEvent) and e.payload.pushed for e in events)
@@ -98,7 +99,11 @@ def consolidate_session(
     for candidate in digest.memories:
         _apply_candidate(conn, session, candidate, llm, embedder, policy, counts, now)
     conn.execute(
-        "update public.sessions set dreamed_through_seq = %s where id = %s",
+        "update public.events set dreamed = true where id = any(%s)", ([event.id for event in raw],)
+    )
+    conn.execute(
+        "update public.sessions set dreamed_through_seq = greatest(dreamed_through_seq, %s)"
+        " where id = %s",
         (raw[-1].seq, session.id),
     )
     counts.sessions_processed += 1
@@ -115,8 +120,22 @@ def _apply_candidate(
     now: datetime,
 ) -> None:
     content = redact_secrets(candidate.content).text
-    vector = to_vector_literal(embedder.embed([content])[0])
     target = target_for(candidate, session.user_id, session.repo, session.branch)
+    duplicate = identical_active(conn, target, candidate, content)
+    if duplicate is not None:
+        merge_into(
+            conn,
+            duplicate,
+            content,
+            None,
+            candidate.confidence,
+            policy.merge_confidence_boost,
+            session.id,
+            now,
+        )
+        counts.memories_merged += 1
+        return
+    vector = to_vector_literal(embedder.embed([content])[0])
     nearest = nearest_active(conn, target, candidate.scope, vector)
     if nearest is None or nearest.similarity < policy.similarity_threshold:
         insert_memory(conn, target, candidate, content, vector, [session.id], now)

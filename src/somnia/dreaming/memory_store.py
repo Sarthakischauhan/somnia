@@ -32,6 +32,19 @@ def target_for(candidate: MemoryCandidate, user_id: UUID, repo: str, branch: str
     return MemoryTarget(user_id=user_id, repo=repo, branch=branch)
 
 
+def identical_active(
+    conn: Conn, target: MemoryTarget, candidate: MemoryCandidate, content: str
+) -> UUID | None:
+    row = conn.execute(
+        "select id from public.memories where user_id = %s and scope = %s"
+        " and repo is not distinct from %s and branch is not distinct from %s"
+        " and type = %s and content = %s and superseded_by is null and archived_at is null"
+        " order by created_at, id limit 1",
+        (target.user_id, candidate.scope, target.repo, target.branch, candidate.type, content),
+    ).fetchone()
+    return UUID(str(row[0])) if row else None
+
+
 def nearest_active(
     conn: Conn, target: MemoryTarget, scope: str, vector: str
 ) -> NearestMemory | None:
@@ -90,14 +103,15 @@ def merge_into(
     conn: Conn,
     memory_id: UUID,
     content: str,
-    vector: str,
+    vector: str | None,
     candidate_confidence: float,
     boost: float,
     session_id: UUID,
     now: datetime,
 ) -> None:
     conn.execute(
-        "update public.memories set content = %s, embedding = %s::extensions.vector,"
+        "update public.memories set content = %s,"
+        " embedding = coalesce(%s::extensions.vector, embedding),"
         " confidence = least(1.0, greatest(confidence, %s) + %s),"
         " source_session_ids = array(select distinct unnest(source_session_ids || %s::uuid)),"
         " updated_at = %s where id = %s",

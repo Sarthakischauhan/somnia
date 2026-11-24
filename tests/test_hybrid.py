@@ -107,3 +107,57 @@ def test_undreamt_chunks_are_searchable_until_dreamt(
     service_conn.execute("update public.memories set archived_at = now()")
     run_dream(service_conn, FakeLlm(), FakeEmbedder(), DreamPolicy(), FIXED_NOW)
     assert [i["source"] for i in _context(client, device, "deploy fly staging")] == []
+
+
+@pytest.mark.db
+def test_undreamt_chunks_stay_on_their_branch(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    session_id = post_session(client, device, ["topic-only migration notes"], branch="topic")
+    assert process_pending_events(service_conn, FakeEmbedder(), 100, 1200, 150) == 1
+    assert _context(client, device, "topic-only migration notes") == []
+    response = client.get(
+        "/v1/context",
+        headers=device.headers,
+        params={"repo": "acme/api", "branch": "topic", "query": "topic-only migration notes"},
+    )
+    assert response.status_code == 200, response.text
+    assert [item["session_id"] for item in response.json()["memories"]] == [session_id]
+
+
+@pytest.mark.db
+def test_late_event_is_searchable_and_dreamed_once(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    session_id = post_session(client, device, ["start"])
+    url = f"/v1/sessions/{session_id}/events"
+    for seq, content in ((3, "work complete"), (2, "remember: amber migration ledger")):
+        response = client.post(
+            url,
+            headers=device.headers,
+            json={
+                "events": [
+                    {
+                        "seq": seq,
+                        "kind": "message",
+                        "payload": {"role": "user", "content": content},
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 202, response.text
+        assert process_pending_events(service_conn, FakeEmbedder(), 100, 1200, 150) > 0
+        if seq == 2:
+            (item,) = _context(client, device, "amber migration ledger")
+            assert "amber migration ledger" in str(item["content"])
+        run_dream(service_conn, FakeLlm(), FakeEmbedder(), DreamPolicy(), FIXED_NOW)
+    run_dream(
+        service_conn, FakeLlm(), FakeEmbedder(), DreamPolicy(), FIXED_NOW + timedelta(seconds=1)
+    )
+    assert service_conn.execute("select content from public.memories").fetchall() == [
+        ("amber migration ledger",),
+    ]
+    assert service_conn.execute("select dreamed_through_seq from public.sessions").fetchone() == (
+        3,
+    )
+    assert service_conn.execute("select count(*) from public.checkpoints").fetchone() == (2,)

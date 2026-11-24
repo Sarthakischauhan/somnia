@@ -274,3 +274,42 @@ def test_run_timestamps_are_wall_clock_not_logical_now(
     body = client.get("/v1/admin/dream-runs", headers=device.headers).json()[0]
     assert body["finished_at"] >= body["started_at"]
     assert body["logical_now"] is not None
+
+
+def test_exact_duplicate_keeps_provenance_without_reconcile(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    from somnia.providers.protocols import MemoryScope, ReconcileDecision
+
+    class NoReconcile(FakeLlm):
+        def reconcile(
+            self, existing: str, candidate: str, candidate_scope: MemoryScope
+        ) -> ReconcileDecision:
+            pytest.fail("Identical candidates should merge without a provider call")
+
+    sessions = [
+        _run_session(client, device, ["remember: quartz ledger uses amber manifest"])
+        for _ in range(2)
+    ]
+    run_dream(service_conn, NoReconcile(), FakeEmbedder(), POLICY, FIXED_NOW)
+    (row,) = service_conn.execute("select source_session_ids from public.memories").fetchall()
+    assert set(row[0]) == {uuid.UUID(session) for session in sessions}
+
+
+def test_served_profile_memory_is_recorded_as_used(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    _run_session(client, device, ["remember: quartz ledger uses amber manifest"])
+    _dream(service_conn, -25)
+    response = client.get(
+        "/v1/context",
+        headers=device.headers,
+        params={"repo": "acme/api", "branch": "main"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["memories"] == []
+    _dream(service_conn)
+    row = service_conn.execute(
+        "select use_count, last_used_at, last_decayed_at from public.memories"
+    ).fetchone()
+    assert row == (1, FIXED_NOW, None)

@@ -111,7 +111,12 @@ def build_session_context(
         if row.id not in disputes.withheld
     ]
     chunk_rows = undreamt_chunks(
-        conn, vector, request.repo, [m.id for m in memory_rows], weights.candidate_pool
+        conn,
+        vector,
+        request.repo,
+        request.branch,
+        [m.id for m in memory_rows],
+        weights.candidate_pool,
     )
     entries = _profile_entries(profile, disputes)
     packed_profile = pack_under_budget(
@@ -144,7 +149,10 @@ def build_session_context(
     packed_items = pack_under_budget(
         ranked, [i.content for i in ranked], request.token_budget, counter, used
     )
-    used_memory_ids = [UUID(i.id) for i in packed_items.items if i.source == "memory"]
+    used_memory_ids = [
+        *in_profile,
+        *(UUID(i.id) for i in packed_items.items if i.source == "memory"),
+    ]
     if used_memory_ids:
         conn.execute(
             "update public.memories set last_used_at = %s, use_count = use_count + 1"
