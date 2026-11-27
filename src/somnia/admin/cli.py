@@ -5,7 +5,7 @@ from uuid import UUID
 
 import psycopg
 
-from somnia.auth.tokens import generate_device_token, hash_device_token
+from somnia.api.auth import generate_device_token, hash_device_token
 from somnia.config import WorkerSettings
 
 

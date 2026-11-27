@@ -230,7 +230,7 @@ curl "localhost:8000/v1/context?repo=acme/api&branch=main&token_budget=800" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## Admin UI (`web/`)
+## Dashboard (`dashboard/`)
 
 Next.js 15 (App Router, TypeScript strict) with plain shadcn/ui. Navigation is a
 collapsible sidebar. Light and dark themes come from next-themes: system is the default,
@@ -241,7 +241,7 @@ Every page is a server component. It calls only the FastAPI service, through a t
 generated from the service OpenAPI schema (`openapi-typescript` and `openapi-fetch`).
 The dashboard signs users in with GitHub via Supabase Auth and forwards their verified
 Supabase access token to FastAPI server-to-server. Mutations go through server actions.
-See [dashboard setup](web/README.md) for OAuth, local development, and Vercel. There is
+See [dashboard setup](dashboard/README.md) for OAuth, local development, and Vercel. There is
 no shared `SOMNIA_ADMIN_TOKEN` in the dashboard.
 
 | Page | Shows |
@@ -281,7 +281,7 @@ marker, which carries no stats (enforced by a CHECK). `started_at` and `finished
 wall-clock. `logical_now` is the time used for decay.
 
 ```bash
-cd web && cp .env.example .env.local && npm ci
+cd dashboard && cp .env.example .env.local && npm ci
 npm run dev   # http://localhost:3000
 
 # Demo data through the real API and dream pipeline. The API must already be running.
@@ -291,7 +291,7 @@ SOMNIA_SERVICE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postg
   uv run python -m scripts.seed_demo
 
 # After changing API models:
-uv run python scripts/export_openapi.py && (cd web && npm run gen:api)
+uv run python scripts/export_openapi.py && (cd dashboard && npm run gen:api)
 ```
 
 ## Schema
@@ -395,10 +395,10 @@ uv run somnia-admin create-device --user-id <auth.users id> --name laptop   # pr
 3. Set the embedding API key on the API and the worker. The Blueprint shares the existing
    Gemini model configuration across both services. Keep the embedding model identical
    across the services. Re-embed existing vectors before switching embedding models.
-4. Configure GitHub OAuth and its callback as described in the [dashboard setup](web/README.md).
+4. Configure GitHub OAuth and its callback as described in the [dashboard setup](dashboard/README.md).
    Set `SOMNIA_API_URL` to the API's HTTPS URL and configure the two
    `NEXT_PUBLIC_SUPABASE_*` settings on the dashboard service. Set its URL as an allowed
-   Supabase redirect. The dashboard can also be deployed from `web/` on Vercel.
+   Supabase redirect. The dashboard can also be deployed from `dashboard/` on Vercel.
 5. Provision device tokens with `somnia-admin create-device` from a trusted operator
    environment, then use `somnia-agent login --api-url https://YOUR-API.onrender.com`.
    Supabase sign-in provides access to user-scoped reads and management. Existing agent

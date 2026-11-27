@@ -5,8 +5,8 @@ from collections.abc import Sequence
 from psycopg.rows import class_row
 from pydantic import BaseModel
 
-from somnia.db.connection import Conn
-from somnia.sessions.checkpoints import CHECKPOINT_COLUMNS
+from somnia.db.client import Conn
+from somnia.sessions.continuity import CHECKPOINT_COLUMNS
 from somnia.sessions.models import CheckpointRecord, TaskRecord
 from somnia.sessions.tasks import TASK_COLUMNS
 

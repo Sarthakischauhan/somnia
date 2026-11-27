@@ -1,4 +1,4 @@
-"""Write the FastAPI OpenAPI schema to web/openapi.json (source for the typed TS client)."""
+"""Write the FastAPI OpenAPI schema to dashboard/openapi.json (source for the typed TS client)."""
 
 import json
 from pathlib import Path
@@ -16,6 +16,6 @@ with httpx.Client(trust_env=False) as client:
         OpenAiEmbedder(client, "unused"),
     )
     schema = app.openapi()
-target = Path(__file__).resolve().parent.parent / "web" / "openapi.json"
+target = Path(__file__).resolve().parent.parent / "dashboard" / "openapi.json"
 target.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n")
 print(f"wrote {target}")

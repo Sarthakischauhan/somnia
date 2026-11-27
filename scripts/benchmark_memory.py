@@ -22,8 +22,8 @@ from pydantic import SecretStr
 
 from somnia.api.app import create_app
 from somnia.config import ApiSettings, DreamPolicy, ProviderSettings
-from somnia.dreaming.dream import run_dream
-from somnia.ingest.pipeline import process_pending_events
+from somnia.ingestion.pipeline import process_pending_events
+from somnia.memory.dreaming import run_dream
 from somnia.memory.inference import OpenAiEmbedder, SymphonyLlm, embedding_client
 from somnia.memory.models import (
     Embedder,
@@ -33,7 +33,7 @@ from somnia.memory.models import (
     ReconcileDecision,
     SessionDigest,
 )
-from somnia.retrieval.tokenizer import TiktokenCounter
+from somnia.memory.tokenizer import TiktokenCounter
 from tests.conftest import ROOT, make_device
 from tests.fixtures.providers import FakeEmbedder, FakeLlm
 

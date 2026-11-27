@@ -9,13 +9,14 @@ from fastapi import FastAPI, HTTPException
 from psycopg import Error
 from psycopg_pool import ConnectionPool
 
-from somnia.api.dependencies import scoped_dependency, user_database_dependency
-from somnia.api.routes_context import build_context_router, utc_now
-from somnia.api.routes_management import build_management_router
-from somnia.api.routes_sessions import build_sessions_router
-from somnia.api.routes_tasks import build_tasks_router
+from somnia.api.auth import scoped_dependency, user_database_dependency
+from somnia.api.routes.ingestion import build_ingestion_router
+from somnia.api.routes.memories import build_management_router
+from somnia.api.routes.retrieval import build_context_router, utc_now
+from somnia.api.routes.sessions import build_sessions_router
+from somnia.api.routes.tasks import build_tasks_router
 from somnia.config import ApiSettings
-from somnia.db.connection import Conn
+from somnia.db.client import Conn
 from somnia.memory.models import Embedder
 
 
@@ -55,6 +56,7 @@ def create_app(
     app = FastAPI(title="somnia", version="0.1.0", lifespan=lifespan)
     scoped = scoped_dependency(pool)
     app.include_router(build_sessions_router(scoped))
+    app.include_router(build_ingestion_router(scoped))
     app.include_router(build_tasks_router(scoped))
     user_db = user_database_dependency(pool, scoped, auth_client)
     management = build_management_router(user_db, settings)

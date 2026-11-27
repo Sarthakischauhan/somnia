@@ -9,7 +9,7 @@ import psycopg
 from psycopg.rows import class_row
 from pydantic import BaseModel
 
-from somnia.db.connection import Conn
+from somnia.db.client import Conn
 from somnia.memory.manage import MemoryRecord, get_memory
 
 ConflictOutcome = Literal["superseded", "coexist", "flagged"]

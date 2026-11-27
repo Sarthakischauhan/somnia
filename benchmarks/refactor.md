@@ -33,27 +33,29 @@ Historical SQL migrations and the existing dashboard are retained.
 somnia/
   src/somnia/
     admin/           cli.py
-    api/             app.py, dependencies.py, serve.py, schemas.py,
-                     routes_context.py, routes_management.py,
-                     routes_sessions.py, routes_tasks.py
-    auth/            principal.py, supabase.py, tokens.py
-    db/              connection.py, vectors.py
-    dreaming/        consolidate.py, dream.py, management.py, memory_store.py,
-                     profile_builder.py, run_log.py, triggers.py
-    ingest/          chunking.py, event_models.py, event_text.py, events.py,
+    api/
+      app.py, auth.py, schemas.py, serve.py
+      routes/        ingestion.py, memories.py, retrieval.py, sessions.py, tasks.py
+    db/              client.py, vectors.py
+    ingestion/       chunking.py, event_models.py, event_text.py, events.py,
                      payload_redaction.py, pipeline.py, redaction.py
-    memory/          conflicts.py, inference.py, manage.py, models.py
-    retrieval/       context.py, disputes.py, hybrid.py, packing.py,
-                     profile_context.py, ranking.py, tokenizer.py
-    sessions/        checkpoints.py, models.py, overview.py, sessions.py, tasks.py
+    memory/          conflicts.py, consolidate.py, disputes.py, dream_runs.py,
+                     dreaming.py, hybrid.py, inference.py, manage.py, memory_store.py,
+                     models.py, packing.py, profile_builder.py, profile_context.py,
+                     ranking.py, retrieval.py, run_log.py, tokenizer.py, triggers.py
+    sessions/        continuity.py, models.py, overview.py, sessions.py, tasks.py
     config.py
     worker.py
   supabase/migrations/
   agent/
   plugins/
-  web/
+  dashboard/
   scripts/
-  tests/fixtures/
+  tests/
+    fixtures/
+    integration/
+    sql/
+    unit/
   benchmarks/
   .env.example
   Dockerfile
@@ -77,14 +79,14 @@ somnia/
 
 | Scope | Baseline | Refactor | Reduction |
 | --- | ---: | ---: | ---: |
-| `src/**.py` physical lines | 3,627 | 3,544 | 2.29% |
-| Python and handwritten migration SQL lines | 4,138 | 4,093 | 1.09% |
-| Python and migration SQL files | 69 | 63 | 8.70% |
+| `src/**.py` physical lines | 3,627 | 3,548 | 2.18% |
+| Python and handwritten migration SQL lines | 4,138 | 4,097 | 0.99% |
+| Python and migration SQL files | 69 | 58 | 15.94% |
 
 Physical lines include comments and blanks. The combined count includes all historical
 migrations and the new migration. Generated clients, lockfiles, tests, demo data,
-benchmarks and the separate agent and web clients are outside the backend count.
-The 50% goal was not reached. On this baseline it required removing another 2,024
+benchmarks and the separate agent and dashboard clients are outside the backend count.
+The 50% goal was not reached. On this baseline it required removing another 2,028
 lines after the refactor. The code remaining owns active workflows that Symphony and
 Supabase do not supply, including scoped hybrid retrieval, project profile maintenance,
 memory lineage, contradiction resolution, redaction, device-backed agent hooks, and the
@@ -97,7 +99,8 @@ HTTP and deterministic providers. Both checkouts ran their actual API, ingestion
 retrieval and dreaming functions. SQL counts use `pg_stat_statements` and include
 schema setup in the total. Upload timings are the total for the initial workload, including
 session creation. Event INSERT counts include later scenario events and additional users.
-Pixeltable reporting was bypassed for both checkouts.
+Pixeltable reporting was bypassed for both checkouts. The subsequent directory
+reorganization is covered by the regression suite and the byte-for-byte OpenAPI check.
 
 | Events | API upload ms | Worker ingestion ms | First dream ms | Retrieval before dream median ms | Retrieval after dream median ms | SQL calls | Event INSERT calls |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |

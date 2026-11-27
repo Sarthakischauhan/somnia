@@ -14,7 +14,7 @@ import psycopg
 
 from somnia.config import DreamPolicy
 from somnia.db.vectors import to_vector_literal
-from somnia.dreaming.dream import run_dream
+from somnia.memory.dreaming import run_dream
 from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 SESSIONS: list[tuple[str, str, list[str], list[str]]] = [

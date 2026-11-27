@@ -39,7 +39,7 @@ services:
   - type: web
     name: somnia-dashboard
     runtime: node
-    rootDir: web
+    rootDir: dashboard
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /

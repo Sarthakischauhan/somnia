@@ -1,6 +1,6 @@
 """Client-side secret redaction, applied before anything is written to the spool.
 
-Mirrors somnia.ingest.redaction / payload_redaction on the server (parity is tested in the
+Mirrors somnia.ingestion.redaction / payload_redaction on the server (parity is tested in the
 server test suite) so secrets never sit on disk or cross the network unredacted.
 """
 

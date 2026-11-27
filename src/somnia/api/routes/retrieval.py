@@ -1,0 +1,61 @@
+"""Session-start context endpoint."""
+
+from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
+
+from somnia.config import ApiSettings
+from somnia.db.client import Conn
+from somnia.memory.models import Embedder
+from somnia.memory.retrieval import (
+    ContextRequest,
+    RetrievalWeights,
+    SessionContext,
+    build_session_context,
+)
+from somnia.memory.tokenizer import TiktokenCounter
+
+
+def build_context_router(
+    scoped: Callable[..., Iterator[Conn]],
+    embedder: Embedder,
+    settings: ApiSettings,
+    clock: Callable[[], datetime],
+) -> APIRouter:
+    counter = TiktokenCounter(settings.token_encoding)
+    router = APIRouter(prefix="/v1", tags=["retrieval"])
+    Db = Annotated[Conn, Depends(scoped, scope="function")]  # noqa: N806 - type alias
+
+    @router.get("/context")
+    def get_context(
+        db: Db,
+        repo: Annotated[str, Query(min_length=1)],
+        branch: Annotated[str, Query(min_length=1)],
+        token_budget: Annotated[int | None, Query(ge=1, le=200_000)] = None,
+        k: Annotated[int, Query(ge=1, le=100)] = 10,
+        query: Annotated[str | None, Query()] = None,
+        checkpoint_first: bool = False,
+    ) -> SessionContext:
+        request = ContextRequest(
+            repo=repo,
+            branch=branch,
+            k=k,
+            query=query,
+            checkpoint_first=checkpoint_first,
+            token_budget=token_budget or settings.default_token_budget,
+        )
+        weights = RetrievalWeights(
+            half_life_days=settings.recency_half_life_days,
+            candidate_pool=k * settings.candidate_pool_factor,
+            chunk_weight=settings.chunk_weight,
+            chunk_dedupe_similarity=settings.chunk_dedupe_similarity,
+        )
+        return build_session_context(db, embedder, request, clock(), weights, counter)
+
+    return router
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)

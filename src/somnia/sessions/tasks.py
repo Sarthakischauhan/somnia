@@ -7,8 +7,8 @@ from psycopg.rows import class_row
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, JsonValue
 
-from somnia.auth.principal import Principal
-from somnia.db.connection import Conn
+from somnia.api.auth import Principal
+from somnia.db.client import Conn
 from somnia.sessions.models import TaskRecord
 
 TASK_COLUMNS = (

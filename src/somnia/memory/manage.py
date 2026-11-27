@@ -6,7 +6,7 @@ from uuid import UUID
 from psycopg.rows import class_row
 from pydantic import BaseModel, Field
 
-from somnia.db.connection import Conn
+from somnia.db.client import Conn
 from somnia.memory.models import MemoryScope, MemoryType
 from somnia.sessions.models import SessionRecord
 

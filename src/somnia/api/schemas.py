@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, JsonValue
 
-from somnia.ingest.event_models import EventIn
+from somnia.ingestion.event_models import EventIn
 from somnia.sessions.models import CheckpointRecord, SessionRecord, TaskRecord
 
 

@@ -34,7 +34,7 @@ jobs:
       - name: OpenAPI schema is up to date
         run: |
           uv run python scripts/export_openapi.py
-          git diff --exit-code web/openapi.json
+          git diff --exit-code dashboard/openapi.json
       - name: Tests (real Postgres + pgvector)
         run: uv run pytest -v -m "db or not db"
 
@@ -65,14 +65,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web
+        working-directory: dashboard
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.23.4
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: dashboard/package-lock.json
       - run: npm ci
       - name: Typed client matches openapi.json
         run: |

@@ -6,7 +6,7 @@ from typing import Self
 from pydantic import AnyHttpUrl, BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from somnia.retrieval.tokenizer import TokenEncoding
+from somnia.memory.tokenizer import TokenEncoding
 
 _ENV = SettingsConfigDict(env_prefix="SOMNIA_", env_file=".env", extra="ignore")
 

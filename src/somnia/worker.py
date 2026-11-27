@@ -10,13 +10,13 @@ from threading import Event
 import psycopg
 
 from somnia.config import ProviderSettings, WorkerSettings
-from somnia.db.connection import Conn
-from somnia.dreaming.dream import run_dream
-from somnia.dreaming.run_log import claim_requested_run, retry_run
-from somnia.dreaming.triggers import enqueue_chunk_thresholds, enqueue_idle_sessions
-from somnia.ingest.pipeline import process_pending_events
+from somnia.db.client import Conn
+from somnia.ingestion.pipeline import process_pending_events
+from somnia.memory.dreaming import run_dream
 from somnia.memory.inference import OpenAiEmbedder, SymphonyLlm, embedding_client
 from somnia.memory.models import Embedder, Llm
+from somnia.memory.run_log import claim_requested_run, retry_run
+from somnia.memory.triggers import enqueue_chunk_thresholds, enqueue_idle_sessions
 
 log = logging.getLogger("somnia.worker")
 
