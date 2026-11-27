@@ -1,15 +1,23 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
-export default function DashboardError({ reset }: { reset: () => void }) {
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function DashboardError() {
   return (
-    <div className="space-y-3">
-      <h1 className="text-xl font-semibold">Dashboard request failed</h1>
-      <p role="alert" className="text-sm text-muted-foreground">
-        The request could not be completed. Refresh to check the current state and try again.
-      </p>
-      <Button onClick={reset} variant="outline">Try again</Button>
-    </div>
+    <Card className="max-w-lg">
+      <CardHeader>
+        <CardTitle><h1>Dashboard request failed</h1></CardTitle>
+        <CardDescription role="alert">
+          Somnia couldn’t complete the request. Reload to check the current state before trying again.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-2">
+        <Button type="button" onClick={() => window.location.reload()}>Reload page</Button>
+        <Link className={buttonVariants({ variant: "outline" })} href="/">Back to Somnia</Link>
+      </CardContent>
+    </Card>
   );
 }

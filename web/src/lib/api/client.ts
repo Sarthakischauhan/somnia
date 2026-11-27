@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import createClient from "openapi-fetch";
 
+import { authErrorPath } from "@/lib/auth-errors";
 import { getSomniaApiUrl } from "@/lib/env";
 import { requireSession } from "@/lib/supabase/session";
 
@@ -47,7 +48,7 @@ export const PROFILE_SECTIONS: readonly { key: ProfileSection; title: string }[]
 export async function somnia() {
   const { token } = await requireSession();
   const apiUrl = getSomniaApiUrl();
-  if (!apiUrl) redirect("/login");
+  if (!apiUrl) redirect(authErrorPath("configuration"));
 
   const api = createClient<paths>({
     baseUrl: apiUrl,
@@ -57,8 +58,8 @@ export async function somnia() {
   });
   api.use({
     onResponse({ response }) {
-      if (response.status === 401) redirect("/login?error=api-session");
-      if (response.status === 403) redirect("/login?error=forbidden");
+      if (response.status === 401) redirect(authErrorPath("api-session"));
+      if (response.status === 403) redirect(authErrorPath("forbidden"));
     },
   });
   return api;

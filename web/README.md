@@ -19,6 +19,6 @@ From `web/`, copy `.env.example` to `.env.local` if you don't have one, then set
 
 Use Node.js 22 or later for the dashboard runtime. Run `npm ci` and `npm run dev`, then open `http://localhost:3000`. For Vercel, set the project root directory to `web`, select Node.js 22 or later, set the three variables for each intended environment, and redeploy when changing `NEXT_PUBLIC_` values. The API must be reachable from Vercel (not `localhost`).
 
-The app can build without these values; requests to an unconfigured dashboard show an unavailable login page. For callback failures, retry from `/login` and check the exact Supabase redirect allowlist. If sign-in succeeds but the API rejects access, check that the API trusts the same project and that the signed-in user has API access.
+The app can build without these values. `/login` starts GitHub sign-in; `/auth/error` shows recovery steps for an unconfigured deployment, cancelled or failed OAuth, service outages, rejected sessions, denied access, and failed sign-out. For callback failures, retry from `/login` in the same browser and check the exact Supabase redirect allowlist. If the API rejects a signed-in user, check that it trusts the same project and that the account has access.
 
 Checks: `npm run lint`, `npm run typecheck`, `npm run build` (the existing `next/font/google` setup needs network access to Google Fonts on a clean build).

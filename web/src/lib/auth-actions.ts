@@ -3,6 +3,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { authErrorPath, isAuthServiceUnavailable } from "@/lib/auth-errors";
+import { getSomniaApiUrl } from "@/lib/env";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createSupabaseClient } from "@/lib/supabase/server";
 
 async function getCallbackUrl() {
@@ -24,8 +27,10 @@ async function getCallbackUrl() {
 }
 
 export async function signInWithGitHub() {
+  if (!getSupabaseConfig() || !getSomniaApiUrl()) redirect(authErrorPath("configuration"));
   const callbackUrl = await getCallbackUrl();
   let url: string | null = null;
+  let failure = authErrorPath("sign-in");
   if (callbackUrl) {
     try {
       const supabase = await createSupabaseClient({ writable: true });
@@ -36,12 +41,14 @@ export async function signInWithGitHub() {
           options: { redirectTo: callbackUrl, skipBrowserRedirect: true },
         });
         if (!error) url = data.url;
+        else if (isAuthServiceUnavailable(error)) failure = authErrorPath("unavailable");
       }
     } catch {
       // Router errors must not include OAuth details or credentials.
+      failure = authErrorPath("unavailable");
     }
   }
-  redirect(url ?? "/login?error=sign-in");
+  redirect(url ?? failure);
 }
 
 export async function signOut() {
@@ -55,5 +62,5 @@ export async function signOut() {
   } catch {
     // Do not report success if Supabase did not clear the session.
   }
-  redirect(signedOut ? "/login" : "/login?error=sign-out");
+  redirect(signedOut ? "/login" : authErrorPath("sign-out"));
 }
