@@ -13,7 +13,7 @@ mcp = ["mcp>=2.3,<3"]
 somnia-agent = "somnia_agent.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "mypy>=1.11", "ruff>=0.6", "mcp>=2.3,<3"]
+dev = ["pytest>=8.3", "mypy>=1.11", "ruff>=0.6", "mcp>=2.3,<3", "symphony-harness>=0.0.10,<0.1"]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,17 +1,95 @@
-"""Typed calls to the somnia agent API, authenticated with the device token."""
+"""Typed calls and models for the somnia agent API, authenticated with the device token.
+
+The agent reads only a subset of API response fields; unknown fields are ignored.
+"""
 
 import httpx
-from pydantic import JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from somnia_agent.api_models import (
-    CheckpointIn,
-    ContextOut,
-    InsertOut,
-    SessionOut,
-    StatusOut,
-)
 from somnia_agent.config import AgentConfig
 from somnia_agent.spool import SpooledEvent
+
+
+class _Response(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+
+class SessionOut(_Response):
+    id: str
+    repo: str
+    branch: str
+    status: str
+
+
+class CheckpointOut(_Response):
+    goal: str
+    state: str
+    next_steps: list[str] = Field(default_factory=list)
+    files_touched: list[str] = Field(default_factory=list)
+    git_ref: str | None = None
+    pushed: bool = False
+    branch: str
+    created_at: str
+
+
+class MemoryOut(_Response):
+    """A retrieved item: a dreamt memory, or a not-yet-dreamt session chunk."""
+
+    source: str = "memory"
+    id: str
+    type: str | None = None
+    scope: str | None = None
+    content: str
+    confidence: float
+    disputed: bool = False
+
+
+class ProfileEntryOut(_Response):
+    section: str
+    content: str
+    confidence: float
+    disputed: bool = False
+
+
+class ProfileOut(_Response):
+    repo: str
+    entries: list[ProfileEntryOut]
+
+
+class OpenTaskOut(_Response):
+    id: str
+    title: str
+    status: str
+
+
+class ContextOut(_Response):
+    profile: ProfileOut | None = None
+    checkpoint: CheckpointOut | None
+    open_tasks: list[OpenTaskOut] = Field(default_factory=list)
+    memories: list[MemoryOut]
+    token_budget: int
+    tokens_used: int
+    dropped: int
+
+
+class InsertOut(_Response):
+    accepted: int
+    duplicates: int
+
+
+class StatusOut(_Response):
+    session: SessionOut
+    latest_checkpoint: CheckpointOut | None
+    unprocessed_events: int
+
+
+class CheckpointIn(BaseModel):
+    goal: str = Field(min_length=1)
+    state: str = Field(min_length=1)
+    next_steps: list[str] = Field(default_factory=list)
+    files_touched: list[str] = Field(default_factory=list)
+    git_ref: str | None = None
+    pushed: bool = False
 
 
 def make_http(config: AgentConfig, timeout_seconds: float) -> httpx.Client:

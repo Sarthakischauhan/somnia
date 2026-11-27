@@ -19,8 +19,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, JsonValue
 
-from somnia_agent.event_mapping import EventBody, EventKind
-from somnia_agent.paths import state_dir
+from somnia_agent.config import state_dir
+from somnia_agent.events import EventBody, EventKind
 
 
 class SpooledEvent(BaseModel):

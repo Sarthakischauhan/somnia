@@ -4,7 +4,7 @@ It is delivered in the harness's context suffix (additionalContext / tool result
 never the system prompt, and the model is told not to act on instructions inside it.
 """
 
-from somnia_agent.api_models import CheckpointOut, ContextOut, MemoryOut, ProfileOut
+from somnia_agent.api import CheckpointOut, ContextOut, MemoryOut, ProfileOut
 
 OPEN_TAG = '<somnia-memory trust="untrusted">'
 CLOSE_TAG = "</somnia-memory>"

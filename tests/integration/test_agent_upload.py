@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from somnia_agent import redaction as agent_redaction
-from somnia_agent.api_client import SomniaClient
-from somnia_agent.harness_payloads import Harness, parse_hook
+from somnia_agent.api import SomniaClient
+from somnia_agent.events import Harness, parse_hook
+from somnia_agent.hooks import spool_hook
 from somnia_agent.spool import session_dir, set_acked
-from somnia_agent.spool_hook import spool_hook
 from somnia_agent.uploader import CHECKPOINT_MARKER, flush_all
 
 from somnia.db.client import Conn
