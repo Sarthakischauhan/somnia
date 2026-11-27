@@ -66,6 +66,9 @@ def render_context(
     body: list[str] = []
     profile = _profile_lines(context.profile) if context.profile and context.profile.entries else []
     checkpoint = _checkpoint_lines(context.checkpoint) if context.checkpoint else []
+    if context.open_tasks:
+        body.append("[open tasks]")
+        body.extend(f"- {task.title} ({task.status}, {task.id})" for task in context.open_tasks)
     body.extend(checkpoint + profile if checkpoint_first else profile + checkpoint)
     body.extend(_item_line(item) for item in context.memories if item.id not in skip_ids)
     if not body:

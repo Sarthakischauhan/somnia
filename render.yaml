@@ -1,30 +1,54 @@
-services:
-  - type: web
-    name: somnia-backend
-    runtime: python
-    plan: 0.5c-512mb
-    numInstances: 1
-    buildCommand: uv sync --locked --no-dev
-    startCommand: exec .venv/bin/somnia-backend
-    healthCheckPath: /healthz
+envVarGroups:
+  - name: somnia-model
     envVars:
-      - key: SOMNIA_HOST
-        value: 0.0.0.0
-      - key: SOMNIA_API_DATABASE_URL
-        sync: false
-      - key: SOMNIA_SERVICE_DATABASE_URL
-        sync: false
-      - key: SOMNIA_PROVIDER
-        value: openai
-      - key: SOMNIA_LLM_API_KEY
-        sync: false
       - key: SOMNIA_LLM_BASE_URL
         value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: SOMNIA_CHAT_MODEL
         value: gemini-3.8-flash
       - key: SOMNIA_EMBEDDING_MODEL
         value: gemini-embedding-001
+
+services:
+  - type: web
+    name: somnia-api
+    runtime: docker
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: somnia-model
+      - key: SOMNIA_LLM_API_KEY
+        sync: false
+      - key: SOMNIA_API_DATABASE_URL
+        sync: false
       - key: SOMNIA_SUPABASE_URL
         sync: false
       - key: SOMNIA_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+
+  - type: worker
+    name: somnia-worker
+    runtime: docker
+    dockerCommand: /app/.venv/bin/somnia-worker
+    maxShutdownDelaySeconds: 90
+    envVars:
+      - fromGroup: somnia-model
+      - key: SOMNIA_LLM_API_KEY
+        sync: false
+      - key: SOMNIA_SERVICE_DATABASE_URL
+        sync: false
+
+  - type: web
+    name: somnia-dashboard
+    runtime: node
+    rootDir: dashboard
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.4
+      - key: SOMNIA_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
         sync: false

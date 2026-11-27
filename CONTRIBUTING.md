@@ -12,7 +12,7 @@ Legend:
 | --- | --- | --- |
 | [uv](https://docs.astral.sh/uv/) | recent | Python env and deps (`uv.lock`, `agent/uv.lock`) |
 | Python | 3.12 (`requires-python = ">=3.12"`; uv picks 3.12) | API, worker, agent CLI |
-| Node.js | 20+ (CI uses 20) | `web/` admin UI |
+| Node.js | 22+ (CI uses 22) | `dashboard/` dashboard |
 | Docker | any recent | Supabase local stack or the pgvector image (📄) |
 | [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | recent | `supabase start`, migrations (📄) |
 
@@ -23,21 +23,21 @@ is how the dev box runs, ✅).
 
 ```
 src/somnia/
-  api/          FastAPI app and routes (/v1/sessions, /v1/context, /v1/tasks, /v1/admin/*)
-  ingest/       chunking, redaction and embedding of session events
-  retrieval/    ranking, hybrid (memories + undreamt chunks), disputes, profile, token packing
-  dreaming/     consolidation, reconciliation, decay, project-profile rebuild, triggers
-  worker/       the worker loop (somnia-worker): ingest, triggers and dreams
-  providers/    LLM and embedder protocols, the deterministic fakes and the OpenAI-compatible client
-  db/ store/ auth/ admin/   connections + RLS transactions, queries, device tokens, admin CLI
+  api/          FastAPI routes and request authentication
+  ingestion/    durable event writes, redaction, chunking and embedding
+  memory/       retrieval, inference, consolidation, dreaming and memory management
+  sessions/     session state, checkpoints and explicit tasks
+  db/           database connections and RLS transactions
+  admin/        operator-only device provisioning
+  worker.py     worker entry point for ingestion and dreaming
 agent/          somnia-agent CLI (hooks, spool, MCP server); its own pyproject and tests
 plugins/        harness plugins: claude-code/, codex/, grok/
-web/            Next.js admin UI; typed client generated from web/openapi.json
+dashboard/            Next.js dashboard; typed client generated from dashboard/openapi.json
 supabase/
   migrations/   ordered SQL migrations (the schema's source of truth)
   seed.sql      local-only dev user, device token and somnia_api password
 scripts/        export_openapi.py, seed_demo.py
-tests/          server tests (real Postgres); tests/sql/supabase_shim.sql
+tests/          unit tests, database integration tests and fixtures
 ```
 
 ## Local setup
@@ -90,21 +90,22 @@ The `search_path` line matters: without it, vector operators in `extensions` are
 ### Run it (✅)
 
 ```bash
-uv run somnia-backend                # API + worker; http://127.0.0.1:8000/docs
-# In another terminal, configure web/.env.local per web/README.md, then:
-cd web && npm ci && npm run dev       # http://localhost:3000
+uv run somnia-api                    # http://127.0.0.1:8000/docs
+# In another terminal, run uv run somnia-worker
+# In another terminal, configure dashboard/.env.local per dashboard/README.md, then:
+cd dashboard && npm ci && npm run dev       # http://localhost:3000
 
 # Demo data through the real API and dream pipeline (API must be running):
 SOMNIA_API_URL=http://127.0.0.1:8000 SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \
-  uv run python scripts/seed_demo.py
+  uv run python -m scripts.seed_demo
 
 # A real device token for a user (printed once):
 uv run somnia-admin create-device --user-id 00000000-0000-0000-0000-00000000d0e5 --name laptop
 ```
 
 `seed_demo.py` also needs `SOMNIA_SERVICE_DATABASE_URL`, which it reads from `.env` or the
-environment. The default provider is `fake` (deterministic and offline). Set
-`SOMNIA_PROVIDER=openai` plus `SOMNIA_LLM_*` for a real OpenAI-compatible endpoint.
+environment. The demo script uses deterministic test fixtures. For real worker and semantic
+retrieval calls, configure `SOMNIA_LLM_*` and the model settings in `.env`.
 
 ## Checks (✅ all, the same commands CI runs)
 
@@ -112,7 +113,7 @@ environment. The default provider is `fake` (deterministic and offline). Set
 # server
 uv run ruff check . && uv run ruff format --check .
 uv run mypy                                        # strict
-uv run python scripts/export_openapi.py && git diff --exit-code web/openapi.json
+uv run python scripts/export_openapi.py && git diff --exit-code dashboard/openapi.json
 SOMNIA_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
   uv run pytest -m "db or not db"                  # real Postgres + pgvector
 
@@ -121,8 +122,8 @@ cd agent && uv sync --locked && uv run ruff check . && uv run ruff format --chec
   && uv run mypy && uv run pytest
 bash -n ../plugins/codex/install.sh && bash -n ../plugins/grok/install.sh
 
-# web
-cd web && npm ci && npm run gen:api && git diff --exit-code src/lib/api/schema.d.ts
+# dashboard
+cd dashboard && npm ci && npm run gen:api && git diff --exit-code src/lib/api/schema.d.ts
 npm run lint && npm run typecheck && npm run build
 ```
 
@@ -135,7 +136,7 @@ DB tests create and drop a throwaway database, using a superuser URL. Without
 > the API, or it fails with `password authentication failed for user "somnia_api"`.
 
 If you change API models, regenerate both schema artifacts:
-`uv run python scripts/export_openapi.py && (cd web && npm run gen:api)`.
+`uv run python scripts/export_openapi.py && (cd dashboard && npm run gen:api)`.
 
 ## Adding a migration
 
@@ -176,7 +177,7 @@ Claude Code plugin docs linked there).
 - Python + FastAPI + Pydantic. Fully typed, `mypy --strict` and ruff clean. Use Pydantic models
   rather than loose dicts at boundaries.
 - No `getattr` / `hasattr` / dynamic attribute tricks. Prefer small, single-purpose modules.
-- Count tokens with tiktoken (`somnia.retrieval.tokenizer`), never with an estimator.
+- Count tokens with tiktoken (`somnia.memory.tokenizer`), never with an estimator.
 - **Never hard-delete memories.** Supersede (`superseded_by`), archive (`archived_at`) or
   retire; conflicts keep both sides with provenance.
 - **RLS on every new table.** The API connects as `somnia_api` and runs as `authenticated`.

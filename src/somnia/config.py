@@ -1,12 +1,12 @@
 """Typed settings. API and worker settings are separate classes so the API
 process can never be configured with the service-role database URL."""
 
-from typing import Literal, Self
+from typing import Self
 
-from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
+from pydantic import AnyHttpUrl, BaseModel, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from somnia.retrieval.tokenizer import TokenEncoding
+from somnia.memory.tokenizer import TokenEncoding
 
 _ENV = SettingsConfigDict(env_prefix="SOMNIA_", env_file=".env", extra="ignore")
 
@@ -14,7 +14,6 @@ _ENV = SettingsConfigDict(env_prefix="SOMNIA_", env_file=".env", extra="ignore")
 class ProviderSettings(BaseSettings):
     model_config = _ENV
 
-    provider: Literal["openai", "fake"] = "fake"
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: SecretStr = SecretStr("")
     chat_model: str = "gpt-4o-mini"
@@ -46,7 +45,15 @@ class ApiSettings(BaseSettings):
         return self
 
 
-class WorkerSettings(BaseSettings):
+class DreamPolicy(BaseModel):
+    similarity_threshold: float = Field(default=0.85, ge=0, le=1)
+    merge_confidence_boost: float = Field(default=0.1, ge=0, le=1)
+    decay_after_days: float = Field(default=14.0, gt=0)
+    decay_factor: float = Field(default=0.9, gt=0, le=1)
+    min_confidence: float = Field(default=0.05, ge=0, le=1)
+
+
+class WorkerSettings(BaseSettings, DreamPolicy):
     model_config = _ENV
 
     service_database_url: SecretStr
@@ -55,10 +62,5 @@ class WorkerSettings(BaseSettings):
     chunk_overlap_chars: int = Field(default=150, ge=0)
     poll_interval_s: float = Field(default=2.0, gt=0)
     dream_interval_s: float = Field(default=3600.0, gt=0)
-    similarity_threshold: float = Field(default=0.85, ge=0, le=1)
-    merge_confidence_boost: float = Field(default=0.1, ge=0, le=1)
-    decay_after_days: float = Field(default=14.0, gt=0)
-    decay_factor: float = Field(default=0.9, gt=0, le=1)
-    min_confidence: float = Field(default=0.05, ge=0, le=1)
     idle_minutes: float = Field(default=30.0, gt=0)  # open session quiet this long -> dream
     chunk_threshold: int = Field(default=200, ge=1)  # undreamt chunks per repo -> dream
