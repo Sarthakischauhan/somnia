@@ -90,9 +90,9 @@ The `search_path` line matters: without it, vector operators in `extensions` are
 ### Run it (✅)
 
 ```bash
-uv run somnia-api                    # http://localhost:8000/docs (RLS role; never give it the service URL)
-uv run somnia-worker                 # ingest + trigger sweeps + dream loop; --once for a single pass
-cd web && cp .env.example .env.local && npm ci && npm run dev    # http://localhost:3000
+uv run somnia-backend                # API + worker; http://127.0.0.1:8000/docs
+# In another terminal, configure web/.env.local per web/README.md, then:
+cd web && npm ci && npm run dev       # http://localhost:3000
 
 # Demo data through the real API and dream pipeline (API must be running):
 SOMNIA_API_URL=http://127.0.0.1:8000 SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \

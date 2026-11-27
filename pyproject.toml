@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 somnia-api = "somnia.api.serve:main"
+somnia-backend = "somnia.supervisor:main"
 somnia-worker = "somnia.worker.main:main"
 somnia-admin = "somnia.admin.cli:main"
 
