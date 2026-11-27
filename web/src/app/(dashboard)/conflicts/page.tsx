@@ -78,8 +78,9 @@ function ConflictCard({ view }: { view: ConflictView }) {
 export default async function ConflictsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const params = await searchParams;
   const showResolved = params.status === "resolved";
+  const api = await somnia();
   const views = unwrap(
-    await somnia().GET("/v1/admin/conflicts", {
+    await api.GET("/v1/admin/conflicts", {
       params: { query: showResolved ? { status: ["resolved"] } : { status: ["open"], outcome: ["flagged"] } },
     }),
   );

@@ -48,7 +48,7 @@ export default async function MemoriesPage({ searchParams }: { searchParams: Pro
     include_superseded: first(params.include_superseded) === "true",
     include_archived: first(params.include_archived) === "true",
   };
-  const api = somnia();
+  const api = await somnia();
   const [page, repos] = await Promise.all([
     api
       .GET("/v1/admin/memories", {

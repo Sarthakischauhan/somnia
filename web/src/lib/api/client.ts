@@ -1,8 +1,11 @@
 import "server-only";
 
+import { redirect } from "next/navigation";
 import createClient from "openapi-fetch";
 
-import { serverEnv } from "@/lib/env";
+import { authErrorPath } from "@/lib/auth-errors";
+import { getSomniaApiUrl } from "@/lib/env";
+import { requireSession } from "@/lib/supabase/session";
 
 import type { components, paths } from "./schema";
 
@@ -41,29 +44,37 @@ export const PROFILE_SECTIONS: readonly { key: ProfileSection; title: string }[]
   { key: "pitfalls", title: "Known pitfalls" },
 ];
 
-/** Typed client for the somnia FastAPI service. Server-only: the token never reaches the browser. */
-export function somnia() {
-  const env = serverEnv();
-  return createClient<paths>({
-    baseUrl: env.apiUrl,
-    headers: { Authorization: `Bearer ${env.adminToken}` },
+/** A fresh server-only client, scoped to a verified dashboard user. */
+export async function somnia() {
+  const { token } = await requireSession();
+  const apiUrl = getSomniaApiUrl();
+  if (!apiUrl) redirect(authErrorPath("configuration"));
+
+  const api = createClient<paths>({
+    baseUrl: apiUrl,
+    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+    redirect: "error",
   });
+  api.use({
+    onResponse({ response }) {
+      if (response.status === 401) redirect(authErrorPath("api-session"));
+      if (response.status === 403) redirect(authErrorPath("forbidden"));
+    },
+  });
+  return api;
 }
 
 export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    detail: string,
-  ) {
-    super(`somnia API ${status}: ${detail}`);
+  constructor(readonly status: number) {
+    super(`Somnia API request failed (${status})`);
   }
 }
 
 /** Unwrap an openapi-fetch result or throw with the HTTP status. */
 export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (result.data === undefined) {
-    throw new ApiError(result.response.status, JSON.stringify(result.error ?? null));
+    throw new ApiError(result.response.status);
   }
   return result.data;
 }

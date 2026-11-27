@@ -232,9 +232,10 @@ the toggle sits in the sidebar footer, and there is no hydration flash. Radius i
 
 Every page is a server component. It calls only the FastAPI service, through a typed client
 generated from the service OpenAPI schema (`openapi-typescript` and `openapi-fetch`).
-`SOMNIA_API_URL` and `SOMNIA_ADMIN_TOKEN` are read server-side (`server-only` modules, no
-`NEXT_PUBLIC_`), so the token never reaches the browser. Mutations go through server
-actions.
+The dashboard signs users in with GitHub via Supabase Auth and forwards their verified
+Supabase access token to FastAPI server-to-server. Mutations go through server actions.
+See [dashboard setup](web/README.md) for OAuth, local development, and Vercel. There is
+no shared `SOMNIA_ADMIN_TOKEN` in the dashboard.
 
 | Page | Shows |
 | --- | --- |
@@ -245,8 +246,9 @@ actions.
 | `/dreaming` | `dream_runs` history (sessions, added, merged, superseded, decayed, duration), **Run dream now**, schedule status (worker interval, pg_cron job, last success, pending requests) |
 | `/sessions` | latest checkpoint per repo/branch, task queue counts and recent tasks |
 
-Admin endpoints use the same per-device token and RLS scope as the agent API. An admin
-token is a device token for that user, so the UI can only see and curate that user's rows.
+Dashboard routes accept Supabase access tokens when configured, and still accept Somnia
+device tokens for existing API clients. Both credentials are scoped by RLS to their owner.
+Agent session, context, and task routes still require a device token.
 Column grants allow updates to `confidence`, `archived_at`, `last_used_at`, and
 `use_count` only.
 
@@ -372,12 +374,32 @@ uv run somnia-worker                      # ingest and dream loop, or pass --onc
 uv run somnia-admin create-device --user-id <auth.users id> --name laptop   # prints the token once
 ```
 
-**Production (hosted Supabase).** Run the migrations (`supabase db push`), then
-`alter role somnia_api login password '<strong secret>'` and point
-`SOMNIA_API_DATABASE_URL` at that role. Give `SOMNIA_SERVICE_DATABASE_URL` (postgres or
-the service role) only to the worker. Enable `pg_cron` before migrating if you want
-database-side dream scheduling. Set `SOMNIA_PROVIDER=openai` plus `SOMNIA_LLM_*` for any
-OpenAI-compatible endpoint. Embeddings must be 1536-d. The `dimensions` parameter is sent.
+### Deploy on Render and Vercel
+
+1. Apply the migrations to the target Supabase project (`supabase db push`). Enable login for
+   `somnia_api` with a strong, unique password and use that restricted login for
+   `SOMNIA_API_DATABASE_URL`. Use a separate privileged database login for
+   `SOMNIA_SERVICE_DATABASE_URL`. Do not run the local demo seed against production.
+2. Connect this repo to a Render Blueprint using `render.yaml`. It runs one Web Service with
+   `somnia-backend`, which supervises one API process and one worker. If either exits, the
+   launcher stops the other and exits nonzero. The API binds Render's `PORT`; locally it
+   defaults to `127.0.0.1:8000`. The launcher separates the database URLs in the child
+   process environments. This is not the same security boundary as two separate services.
+   Keep one instance initially, and leave `pg_cron` disabled unless you need a second scheduler.
+3. Set the database URLs, `SOMNIA_LLM_API_KEY` (Gemini), `SOMNIA_SUPABASE_URL`, and
+   `SOMNIA_SUPABASE_PUBLISHABLE_KEY` in Render. The Blueprint configures Gemini for chat
+   and 1536-dimensional embeddings, shared by ingestion and retrieval. If changing embedding
+   models, re-embed existing vectors before relying on semantic search.
+4. Follow [dashboard setup](web/README.md) to register a GitHub OAuth app, enable GitHub in
+   Supabase, and deploy `web/` on Vercel. Set `SOMNIA_API_URL` there to the Render HTTPS URL.
+   Keep the GitHub client secret in Supabase; Vercel needs no database or Gemini credentials.
+5. To connect a signed-in user's agent, look up that user's Supabase Auth UUID, then run
+   `somnia-admin create-device` for each device from a trusted operator environment. Use
+   `somnia-agent login --api-url https://YOUR-BACKEND.onrender.com` on the device. Device
+   enrollment is still manual. GitHub sign-in alone does not create a device token.
+
+For local development with both database URLs configured, run `uv run somnia-backend`
+then start the dashboard separately. The two standalone backend commands still work.
 
 ## Development
 

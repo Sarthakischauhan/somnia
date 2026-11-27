@@ -15,7 +15,7 @@ import { formatDateTime } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function SessionsPage() {
-  const api = somnia();
+  const api = await somnia();
   const [checkpoints, queue] = await Promise.all([
     api.GET("/v1/admin/checkpoints/latest").then(unwrap),
     api.GET("/v1/admin/tasks", { params: { query: { limit: 50 } } }).then(unwrap),
