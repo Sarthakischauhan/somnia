@@ -5,7 +5,8 @@ from typing import Any
 import pixeltable as pxt
 
 
-@pxt.udf
+# Pixeltable is optional and its decorator is untyped in the CI environment.
+@pxt.udf  # type: ignore[untyped-decorator]
 def passes_lifecycle(metrics: dict[str, Any]) -> bool:
     if not metrics:
         return False
