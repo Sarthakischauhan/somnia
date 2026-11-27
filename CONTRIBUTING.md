@@ -32,7 +32,7 @@ src/somnia/
   worker.py     worker entry point for ingestion and dreaming
 agent/          somnia-agent CLI (hooks, spool, MCP server); its own pyproject and tests
 plugins/        harness plugins: claude-code/, codex/, grok/
-dashboard/            Next.js dashboard; typed client generated from dashboard/openapi.json
+dashboard/      Next.js dashboard; client types generated from FastAPI
 supabase/
   migrations/   ordered SQL migrations (the schema's source of truth)
   seed.sql      local-only dev user, device token and somnia_api password
@@ -113,7 +113,6 @@ retrieval calls, configure `SOMNIA_LLM_*` and the model settings in `.env`.
 # server
 uv run ruff check . && uv run ruff format --check .
 uv run mypy                                        # strict
-uv run python scripts/export_openapi.py && git diff --exit-code dashboard/openapi.json
 SOMNIA_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres \
   uv run pytest -m "db or not db"                  # real Postgres + pgvector
 
@@ -135,8 +134,9 @@ DB tests create and drop a throwaway database, using a superuser URL. Without
 > `psql "$U" -f supabase/seed.sql` (it resets the password to `somnia_api_local`) and restart
 > the API, or it fails with `password authentication failed for user "somnia_api"`.
 
-If you change API models, regenerate both schema artifacts:
-`uv run python scripts/export_openapi.py && (cd dashboard && npm run gen:api)`.
+If you change API models, run `npm --prefix dashboard run gen:api` after installing
+its npm dependencies. The command uses `uv` to export FastAPI’s schema and updates
+`dashboard/src/lib/api/schema.d.ts` without starting the API or database.
 
 ## Adding a migration
 
