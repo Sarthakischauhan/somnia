@@ -290,8 +290,8 @@ SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \
 SOMNIA_SERVICE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
   uv run python -m scripts.seed_demo
 
-# After changing API models:
-uv run python scripts/export_openapi.py && (cd dashboard && npm run gen:api)
+# After changing API models, from dashboard/:
+npm run gen:api
 ```
 
 ## Schema
