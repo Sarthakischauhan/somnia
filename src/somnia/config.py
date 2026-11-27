@@ -1,9 +1,9 @@
 """Typed settings. API and worker settings are separate classes so the API
 process can never be configured with the service-role database URL."""
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field, SecretStr
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from somnia.retrieval.tokenizer import TokenEncoding
@@ -26,6 +26,8 @@ class ApiSettings(BaseSettings):
     model_config = _ENV
 
     api_database_url: SecretStr
+    supabase_url: AnyHttpUrl | None = None
+    supabase_publishable_key: SecretStr | None = None
     pool_max_size: int = Field(default=10, ge=1)
     recency_half_life_days: float = Field(default=30.0, gt=0)
     default_token_budget: int = Field(default=2000, ge=1)
@@ -34,6 +36,14 @@ class ApiSettings(BaseSettings):
     candidate_pool_factor: int = Field(default=4, ge=1)
     chunk_weight: float = Field(default=0.5, ge=0, le=1)  # undreamt chunks rank below memories
     chunk_dedupe_similarity: float = Field(default=0.9, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def dashboard_auth_is_configured_together(self) -> Self:
+        if bool(self.supabase_url) != bool(
+            self.supabase_publishable_key and self.supabase_publishable_key.get_secret_value()
+        ):
+            raise ValueError("set both SOMNIA_SUPABASE_URL and SOMNIA_SUPABASE_PUBLISHABLE_KEY")
+        return self
 
 
 class WorkerSettings(BaseSettings):
