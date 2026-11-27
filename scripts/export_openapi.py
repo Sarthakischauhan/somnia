@@ -1,7 +1,6 @@
-"""Write the FastAPI OpenAPI schema to dashboard/openapi.json (source for the typed TS client)."""
+"""Print the FastAPI OpenAPI schema for dashboard type generation."""
 
 import json
-from pathlib import Path
 
 import httpx
 from pydantic import SecretStr
@@ -12,10 +11,8 @@ from somnia.memory.inference import OpenAiEmbedder
 
 with httpx.Client(trust_env=False) as client:
     app = create_app(
-        ApiSettings(api_database_url=SecretStr("postgresql://unused")),
+        ApiSettings(api_database_url=SecretStr("postgresql://unused"), _env_file=None),
         OpenAiEmbedder(client, "unused"),
     )
     schema = app.openapi()
-target = Path(__file__).resolve().parent.parent / "dashboard" / "openapi.json"
-target.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n")
-print(f"wrote {target}")
+print(json.dumps(schema, sort_keys=True))

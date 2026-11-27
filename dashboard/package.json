@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "gen:api": "openapi-typescript openapi.json -o src/lib/api/schema.d.ts"
+    "gen:api": "bash -o pipefail -c 'uv run --locked --project .. python ../scripts/export_openapi.py | openapi-typescript -o src/lib/api/schema.d.ts'"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

@@ -31,10 +31,6 @@ jobs:
           uv run ruff format --check .
       - name: Typecheck
         run: uv run mypy
-      - name: OpenAPI schema is up to date
-        run: |
-          uv run python scripts/export_openapi.py
-          git diff --exit-code dashboard/openapi.json
       - name: Tests (real Postgres + pgvector)
         run: uv run pytest -v -m "db or not db"
 
@@ -73,8 +69,11 @@ jobs:
           node-version: 22.23.4
           cache: npm
           cache-dependency-path: dashboard/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
       - run: npm ci
-      - name: Typed client matches openapi.json
+      - name: Dashboard types match the FastAPI schema
         run: |
           npm run gen:api
           git diff --exit-code src/lib/api/schema.d.ts
