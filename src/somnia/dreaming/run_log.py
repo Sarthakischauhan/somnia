@@ -30,11 +30,24 @@ class RunRequest(BaseModel):
 
 def claim_requested_run(conn: Conn) -> UUID | None:
     row = conn.execute(
-        "update public.dream_runs set status = 'running', started_at = clock_timestamp()"
+        "update public.dream_runs set status = 'running', started_at = clock_timestamp(),"
+        " attempts = attempts + 1, error = null"
         " where id = (select id from public.dream_runs where status = 'requested'"
+        "   and available_at <= clock_timestamp()"
         "   order by requested_at limit 1 for update skip locked) returning id"
     ).fetchone()
     return UUID(str(row[0])) if row else None
+
+
+def retry_run(conn: Conn, run_id: UUID, error: str) -> None:
+    conn.execute(
+        "update public.dream_runs set"
+        " status = case when attempts >= 5 then 'failed' else 'requested' end,"
+        " available_at = clock_timestamp() + make_interval(secs => 2 ^ attempts),"
+        " finished_at = case when attempts >= 5 then clock_timestamp() end, error = %s"
+        " where id = %s",
+        (error, run_id),
+    )
 
 
 def load_request(conn: Conn, run_id: UUID) -> RunRequest:

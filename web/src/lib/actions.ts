@@ -11,7 +11,7 @@ export async function updateConfidence(memoryId: string, formData: FormData): Pr
     throw new Error("confidence must be between 0 and 1");
   }
   unwrap(
-    await api.PATCH("/v1/admin/memories/{memory_id}", {
+    await api.PATCH("/v1/memories/{memory_id}", {
       params: { path: { memory_id: memoryId } },
       body: { confidence },
     }),
@@ -23,7 +23,7 @@ export async function updateConfidence(memoryId: string, formData: FormData): Pr
 export async function setArchived(memoryId: string, archived: boolean): Promise<void> {
   const api = await somnia();
   unwrap(
-    await api.PATCH("/v1/admin/memories/{memory_id}", {
+    await api.PATCH("/v1/memories/{memory_id}", {
       params: { path: { memory_id: memoryId } },
       body: { archived },
     }),
@@ -34,14 +34,14 @@ export async function setArchived(memoryId: string, archived: boolean): Promise<
 
 export async function runDreamNow(): Promise<void> {
   const api = await somnia();
-  unwrap(await api.POST("/v1/admin/dream-runs"));
+  unwrap(await api.POST("/v1/dream-runs"));
   revalidatePath("/dreaming");
 }
 
 export async function resolveConflict(conflictId: string, resolution: Resolution): Promise<void> {
   const api = await somnia();
   unwrap(
-    await api.POST("/v1/admin/conflicts/{conflict_id}/resolve", {
+    await api.POST("/v1/conflicts/{conflict_id}/resolve", {
       params: { path: { conflict_id: conflictId } },
       body: { resolution },
     }),

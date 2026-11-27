@@ -36,9 +36,16 @@ changes before switching machines.
    checkpoint, and adds, merges, or supersedes memories. Idle memories decay. Rows are not
    hard-deleted.
 5. `GET /v1/context` returns the open checkpoint plus the memories that fit `token_budget`,
-   ranked by similarity, confidence, and recency.
+   ranked by similarity, confidence, and recency. Tracked open tasks are included independently of ranking.
 
 ## Architecture
+
+The PostgreSQL events table acts as the durable outbox. API ingestion commits the batch
+before returning `202`. Worker embedding, extraction and dreaming run independently.
+Sessions, explicit open tasks and token-budgeted memories are assembled for handoff.
+Ambiguous contradictions can use a bounded Symphony Core Harness run with a read-only,
+user-scoped evidence tool. Single-call operations use Core AI and Pydantic validation.
+See the [refactor report](benchmarks/refactor.md) for measurements and rollout details.
 
 ```mermaid
 flowchart LR
@@ -89,7 +96,7 @@ flowchart LR
 
 Solid arrows are data. Dotted arrows are model calls. The API role is `somnia_api`, which
 switches to `authenticated` for the request. The worker is the only process with the service
-role. The model is an OpenAI-compatible endpoint, or the fake provider in tests.
+role. The worker uses Symphony Core AI for chat inference. Deterministic providers live in tests.
 
 ### Request path
 
@@ -254,18 +261,18 @@ Column grants allow updates to `confidence`, `archived_at`, `last_used_at`, and
 
 | Method and path | Body or query | Returns |
 | --- | --- | --- |
-| `GET /v1/admin/memories` | `repo`, `branch`, `type`, `scope`, `q`, `include_superseded`, `include_archived`, `limit`, `offset` | `{items: Memory[], total}` |
-| `GET /v1/admin/memories/{id}` | | `{memory, sources: Session[], supersedes: Memory[], superseded_by_chain: Memory[]}` |
-| `PATCH /v1/admin/memories/{id}` | `{confidence?: 0..1, archived?: bool}` | memory. Archive is soft (`archived_at`). |
-| `GET /v1/admin/repos` | | `[{repo, branch}]` for filters |
-| `GET /v1/admin/dream-runs` | `limit` | `DreamRun[]` |
-| `POST /v1/admin/dream-runs` | | `202` requested run. The worker picks it up. |
-| `GET /v1/admin/dream-schedule` | | `{pg_cron_schedule, worker_interval_s, last_run, last_success_at, pending_requests}` |
-| `GET /v1/admin/checkpoints/latest` | | latest checkpoint per repo and branch |
-| `GET /v1/admin/tasks` | `status` (repeatable), `limit` | `{counts: {queued, running, done, failed}, items}` |
-| `GET /v1/admin/project-profile` | `repo` | `{repo, version, updated_at, entries: ProfileEntry[]}` (404 before the first build) |
-| `GET /v1/admin/conflicts` | `status` (default `open`), `outcome` (both repeatable), `limit` | `[{conflict, existing: Memory, candidate: Memory}]` |
-| `POST /v1/admin/conflicts/{id}/resolve` | `{resolution: keep_existing \| keep_candidate \| keep_both}` | the resolved conflict (`409` if already resolved) |
+| `GET /v1/memories` | `repo`, `branch`, `type`, `scope`, `q`, `include_superseded`, `include_archived`, `limit`, `offset` | `{items: Memory[], total}` |
+| `GET /v1/memories/{id}` | | `{memory, sources: Session[], supersedes: Memory[], superseded_by_chain: Memory[]}` |
+| `PATCH /v1/memories/{id}` | `{confidence?: 0..1, archived?: bool}` | memory. Archive is soft (`archived_at`). |
+| `GET /v1/repos` | | `[{repo, branch}]` for filters |
+| `GET /v1/dream-runs` | `limit` | `DreamRun[]` |
+| `POST /v1/dream-runs` | | `202` requested run. The worker picks it up. |
+| `GET /v1/dream-schedule` | | `{pg_cron_schedule, worker_interval_s, last_run, last_success_at, pending_requests}` |
+| `GET /v1/checkpoints/latest` | | latest checkpoint per repo and branch |
+| `GET /v1/tasks` | `status` (repeatable), `limit` | `{counts: {queued, running, done, failed}, items}` |
+| `GET /v1/project-profile` | `repo` | `{repo, version, updated_at, entries: ProfileEntry[]}` (404 before the first build) |
+| `GET /v1/conflicts` | `status` (default `open`), `outcome` (both repeatable), `limit` | `[{conflict, existing: Memory, candidate: Memory}]` |
+| `POST /v1/conflicts/{id}/resolve` | `{resolution: keep_existing \| keep_candidate \| keep_both}` | the resolved conflict (`409` if already resolved) |
 
 Archived memories are excluded from retrieval, dedupe, and decay. Every `dream_runs` row
 that carries stats belongs to one user (RLS is owner-only). A scheduled or pg_cron run
@@ -281,7 +288,7 @@ npm run dev   # http://localhost:3000
 SOMNIA_API_URL=http://127.0.0.1:8000 \
 SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \
 SOMNIA_SERVICE_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
-  uv run python scripts/seed_demo.py
+  uv run python -m scripts.seed_demo
 
 # After changing API models:
 uv run python scripts/export_openapi.py && (cd web && npm run gen:api)
@@ -353,7 +360,7 @@ is at least `SOMNIA_CHUNK_DEDUPE_SIMILARITY` (0.9) similar to it. Each item says
 
 Every supersede, coexist and flag writes a `memory_conflicts` row with the rationale and the
 session id. Nothing is deleted. Flagged conflicts appear on the **Conflicts** page and at
-`GET /v1/admin/conflicts`, and are resolved with `POST /v1/admin/conflicts/{id}/resolve`
+`GET /v1/conflicts`, and are resolved with `POST /v1/conflicts/{id}/resolve`
 (`keep_existing | keep_candidate | keep_both`). Resolution goes through the owner-checked
 `somnia_resolve_conflict` function, which marks the losing side superseded.
 
@@ -374,32 +381,35 @@ uv run somnia-worker                      # ingest and dream loop, or pass --onc
 uv run somnia-admin create-device --user-id <auth.users id> --name laptop   # prints the token once
 ```
 
-### Deploy on Render and Vercel
+### Deploy on Render
 
-1. Apply the migrations to the target Supabase project (`supabase db push`). Enable login for
-   `somnia_api` with a strong, unique password and use that restricted login for
-   `SOMNIA_API_DATABASE_URL`. Use a separate privileged database login for
-   `SOMNIA_SERVICE_DATABASE_URL`. Do not run the local demo seed against production.
-2. Connect this repo to a Render Blueprint using `render.yaml`. It runs one Web Service with
-   `somnia-backend`, which supervises one API process and one worker. If either exits, the
-   launcher stops the other and exits nonzero. The API binds Render's `PORT`; locally it
-   defaults to `127.0.0.1:8000`. The launcher separates the database URLs in the child
-   process environments. This is not the same security boundary as two separate services.
-   Keep one instance initially, and leave `pg_cron` disabled unless you need a second scheduler.
-3. Set the database URLs, `SOMNIA_LLM_API_KEY` (Gemini), `SOMNIA_SUPABASE_URL`, and
-   `SOMNIA_SUPABASE_PUBLISHABLE_KEY` in Render. The Blueprint configures Gemini for chat
-   and 1536-dimensional embeddings, shared by ingestion and retrieval. If changing embedding
-   models, re-embed existing vectors before relying on semantic search.
-4. Follow [dashboard setup](web/README.md) to register a GitHub OAuth app, enable GitHub in
-   Supabase, and deploy `web/` on Vercel. Set `SOMNIA_API_URL` there to the Render HTTPS URL.
-   Keep the GitHub client secret in Supabase; Vercel needs no database or Gemini credentials.
-5. To connect a signed-in user's agent, look up that user's Supabase Auth UUID, then run
-   `somnia-admin create-device` for each device from a trusted operator environment. Use
-   `somnia-agent login --api-url https://YOUR-BACKEND.onrender.com` on the device. Device
-   enrollment is still manual. GitHub sign-in alone does not create a device token.
+1. Stop the old worker before applying the migrations to Supabase with `supabase db push`.
+   The new migration tightens task ownership rules and reschedules stranded dream jobs.
+   It keeps existing memories, embeddings, sessions, and tasks. Enable login for
+   `somnia_api` with its own password and configure its search path as documented in
+   [CONTRIBUTING.md](CONTRIBUTING.md). Give the worker its own privileged database login.
+2. Connect the repository to a Render Blueprint using [render.yaml](render.yaml). The
+   API and background worker build the same image and use separate service environments.
+   Set `SOMNIA_API_DATABASE_URL` on the API and `SOMNIA_SERVICE_DATABASE_URL` on the worker.
+   Set the Supabase project URL and publishable key on the API.
+3. Set the embedding API key on the API and the worker. The Blueprint shares the existing
+   Gemini model configuration across both services. Keep the embedding model identical
+   across the services. Re-embed existing vectors before switching embedding models.
+4. Configure GitHub OAuth and its callback as described in the [dashboard setup](web/README.md).
+   Set `SOMNIA_API_URL` to the API's HTTPS URL and configure the two
+   `NEXT_PUBLIC_SUPABASE_*` settings on the dashboard service. Set its URL as an allowed
+   Supabase redirect. The dashboard can also be deployed from `web/` on Vercel.
+5. Provision device tokens with `somnia-admin create-device` from a trusted operator
+   environment, then use `somnia-agent login --api-url https://YOUR-API.onrender.com`.
+   Supabase sign-in provides access to user-scoped reads and management. Existing agent
+   ingestion and task writes use their device credentials.
 
-For local development with both database URLs configured, run `uv run somnia-backend`
-then start the dashboard separately. The two standalone backend commands still work.
+The API's `/healthz` checks PostgreSQL readiness. The worker handles SIGTERM and finishes
+the current tick when time permits. An interrupted transaction leaves event and dream work
+eligible for retry. Previously deployed dashboard versions can still use `/v1/admin/*`
+during rollout.
+
+Run `uv run somnia-api` and `uv run somnia-worker` in separate terminals for local development.
 
 ## Development
 

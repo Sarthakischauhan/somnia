@@ -19,7 +19,7 @@ from somnia.api.app import create_app
 from somnia.auth.tokens import generate_device_token, hash_device_token
 from somnia.config import ApiSettings
 from somnia.db.connection import Conn
-from somnia.providers.fake import FakeEmbedder
+from tests.fixtures.providers import FakeEmbedder
 
 ROOT = Path(__file__).resolve().parent.parent
 API_PASSWORD = "somnia_api_test"

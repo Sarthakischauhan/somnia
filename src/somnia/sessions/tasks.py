@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, JsonValue
 
 from somnia.auth.principal import Principal
 from somnia.db.connection import Conn
-from somnia.records import TaskRecord
+from somnia.sessions.models import TaskRecord
 
 TASK_COLUMNS = (
     "id, session_id, repo, branch, title, payload, status, priority, attempts,"
@@ -84,3 +84,23 @@ def get_task(conn: Conn, task_id: UUID) -> TaskRecord | None:
     with conn.cursor(row_factory=class_row(TaskRecord)) as cur:
         cur.execute("select " + TASK_COLUMNS + " from public.tasks where id = %s", (task_id,))
         return cur.fetchone()
+
+
+class OpenTask(BaseModel):
+    id: UUID
+    title: str
+    status: Literal["queued", "running"]
+    session_id: UUID | None
+
+
+def open_tasks(conn: Conn, repo: str, branch: str) -> list[OpenTask]:
+    with conn.cursor(row_factory=class_row(OpenTask)) as cur:
+        cur.execute(
+            "select t.id, t.title, t.status, t.session_id from public.tasks t"
+            " left join public.sessions s on s.id = t.session_id"
+            " where t.status in ('queued', 'running') and coalesce(t.repo, s.repo) = %s"
+            " and coalesce(t.branch, s.branch, %s) = %s"
+            " order by t.priority desc, t.created_at, t.id",
+            (repo, branch, branch),
+        )
+        return cur.fetchall()

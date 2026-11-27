@@ -13,7 +13,7 @@ from psycopg.rows import class_row
 from pydantic import BaseModel
 
 from somnia.db.connection import Conn
-from somnia.providers.protocols import Llm, MemoryType, ProfileItem
+from somnia.memory.models import Llm, MemoryType, ProfileItem
 
 CHECKPOINT_CONFIDENCE = 0.6
 

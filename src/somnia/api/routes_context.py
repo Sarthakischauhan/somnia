@@ -6,9 +6,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from somnia.api.dependencies import Scoped
 from somnia.config import ApiSettings
-from somnia.providers.protocols import Embedder
+from somnia.db.connection import Conn
+from somnia.memory.models import Embedder
 from somnia.retrieval.context import (
     ContextRequest,
     RetrievalWeights,
@@ -19,14 +19,14 @@ from somnia.retrieval.tokenizer import TiktokenCounter
 
 
 def build_context_router(
-    scoped: Callable[..., Iterator[Scoped]],
+    scoped: Callable[..., Iterator[Conn]],
     embedder: Embedder,
     settings: ApiSettings,
     clock: Callable[[], datetime],
 ) -> APIRouter:
     counter = TiktokenCounter(settings.token_encoding)
     router = APIRouter(prefix="/v1", tags=["retrieval"])
-    Db = Annotated[Scoped, Depends(scoped)]  # noqa: N806 - type alias
+    Db = Annotated[Conn, Depends(scoped, scope="function")]  # noqa: N806 - type alias
 
     @router.get("/context")
     def get_context(
@@ -52,7 +52,7 @@ def build_context_router(
             chunk_weight=settings.chunk_weight,
             chunk_dedupe_similarity=settings.chunk_dedupe_similarity,
         )
-        return build_session_context(db.conn, embedder, request, clock(), weights, counter)
+        return build_session_context(db, embedder, request, clock(), weights, counter)
 
     return router
 

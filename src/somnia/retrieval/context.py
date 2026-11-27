@@ -10,8 +10,7 @@ from pydantic import BaseModel
 
 from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
-from somnia.providers.protocols import Embedder
-from somnia.records import CheckpointRecord
+from somnia.memory.models import Embedder
 from somnia.retrieval.disputes import OpenDisputes, load_open_disputes
 from somnia.retrieval.hybrid import ContextItem, chunk_items, merge_ranked, undreamt_chunks
 from somnia.retrieval.packing import pack_under_budget
@@ -23,7 +22,9 @@ from somnia.retrieval.profile_context import (
 )
 from somnia.retrieval.ranking import MemoryCandidateRow, rank_memories
 from somnia.retrieval.tokenizer import TiktokenCounter, TokenEncoding
-from somnia.store.checkpoints import latest_open_checkpoint
+from somnia.sessions.checkpoints import latest_open_checkpoint
+from somnia.sessions.models import CheckpointRecord
+from somnia.sessions.tasks import OpenTask, open_tasks
 
 
 class ContextRequest(BaseModel):
@@ -45,6 +46,7 @@ class RetrievalWeights(BaseModel):
 class SessionContext(BaseModel):
     profile: ProjectProfileOut | None
     checkpoint: CheckpointRecord | None
+    open_tasks: list[OpenTask]
     memories: list[ContextItem]
     token_budget: int
     token_encoding: TokenEncoding
@@ -172,6 +174,7 @@ def build_session_context(
             else None
         ),
         checkpoint=checkpoint,
+        open_tasks=open_tasks(conn, request.repo, request.branch),
         memories=packed_items.items,
         token_budget=request.token_budget,
         token_encoding=counter.encoding_name,

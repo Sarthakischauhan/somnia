@@ -12,7 +12,7 @@ from somnia.ingest.chunking import chunk_text
 from somnia.ingest.event_models import EVENT_ADAPTER
 from somnia.ingest.event_text import render_event
 from somnia.ingest.redaction import redact_secrets
-from somnia.providers.protocols import Embedder
+from somnia.memory.models import Embedder
 
 
 class _PendingEvent(BaseModel):

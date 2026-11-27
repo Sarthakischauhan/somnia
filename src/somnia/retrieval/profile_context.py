@@ -7,7 +7,7 @@ from psycopg.rows import class_row
 from pydantic import BaseModel
 
 from somnia.db.connection import Conn
-from somnia.providers.protocols import ProfileSection
+from somnia.memory.models import ProfileSection
 
 # Order sections appear in (and are kept in) when packing under a token budget.
 SECTION_PRIORITY: tuple[ProfileSection, ...] = (

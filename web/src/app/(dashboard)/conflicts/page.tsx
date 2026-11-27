@@ -80,7 +80,7 @@ export default async function ConflictsPage({ searchParams }: { searchParams: Pr
   const showResolved = params.status === "resolved";
   const api = await somnia();
   const views = unwrap(
-    await api.GET("/v1/admin/conflicts", {
+    await api.GET("/v1/conflicts", {
       params: { query: showResolved ? { status: ["resolved"] } : { status: ["open"], outcome: ["flagged"] } },
     }),
   );

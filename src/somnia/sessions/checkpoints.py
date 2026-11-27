@@ -6,7 +6,7 @@ from psycopg.rows import class_row
 from pydantic import BaseModel, Field
 
 from somnia.db.connection import Conn
-from somnia.records import CheckpointRecord
+from somnia.sessions.models import CheckpointRecord
 
 CHECKPOINT_COLUMNS = (
     "id, session_id, repo, branch, goal, state, next_steps, files_touched, git_ref,"
@@ -33,6 +33,11 @@ def create_checkpoint(
     draft: CheckpointDraft,
     source: str,
 ) -> CheckpointRecord:
+    conn.execute(
+        "select pg_advisory_xact_lock(hashtextextended(jsonb_build_array("
+        " %s::uuid, %s::text, %s::text)::text, 1))",
+        (user_id, repo, branch),
+    )
     conn.execute(
         "update public.checkpoints set status = 'closed'"
         " where user_id = %s and repo = %s and branch = %s and status = 'open'",

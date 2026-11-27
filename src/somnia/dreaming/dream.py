@@ -4,13 +4,13 @@ dream_runs row per user so stats never mix across users."""
 from datetime import datetime
 from uuid import UUID
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.consolidate import consolidate_session, sessions_needing_dream
 from somnia.dreaming.memory_store import decay_unused
-from somnia.dreaming.policy import DreamPolicy
 from somnia.dreaming.profile_builder import profile_repos, rebuild_profile
 from somnia.dreaming.run_log import DreamCounts, finish_run, load_request, start_user_run
-from somnia.providers.protocols import Embedder, Llm
+from somnia.memory.models import Embedder, Llm
 
 
 def dream_users(conn: Conn) -> list[UUID]:
@@ -47,7 +47,7 @@ def run_dream(
         try:
             ids = _fan_out(conn, llm, embedder, policy, now, request.trigger, run_id)
         except Exception as exc:
-            finish_run(conn, run_id, DreamCounts(), f"{type(exc).__name__}: {exc}", now)
+            finish_run(conn, run_id, DreamCounts(), type(exc).__name__, now)
             raise
         finish_run(conn, run_id, DreamCounts(), None, now)
         return ids
@@ -102,6 +102,6 @@ def _dream_for_user(
                     conn, user_id, profile_repo, llm, now
                 )
     except Exception as exc:
-        finish_run(conn, run_id, DreamCounts(), f"{type(exc).__name__}: {exc}", now)
+        finish_run(conn, run_id, DreamCounts(), type(exc).__name__, now)
         raise
     finish_run(conn, run_id, counts, None, now)

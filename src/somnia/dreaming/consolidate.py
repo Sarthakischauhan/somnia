@@ -6,6 +6,7 @@ from uuid import UUID
 from psycopg.rows import class_row
 from pydantic import BaseModel, JsonValue
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
 from somnia.dreaming.memory_store import (
@@ -17,13 +18,13 @@ from somnia.dreaming.memory_store import (
     supersede,
     target_for,
 )
-from somnia.dreaming.policy import DreamPolicy
 from somnia.dreaming.run_log import DreamCounts
 from somnia.ingest.event_models import EVENT_ADAPTER, GitRefEvent
 from somnia.ingest.event_text import render_event
 from somnia.ingest.redaction import redact_secrets
-from somnia.providers.protocols import Embedder, Llm, MemoryCandidate
-from somnia.store.checkpoints import CheckpointDraft, create_checkpoint
+from somnia.memory.inference import SymphonyLlm
+from somnia.memory.models import Embedder, Llm, MemoryCandidate
+from somnia.sessions.checkpoints import CheckpointDraft, create_checkpoint
 
 
 class SessionToDream(BaseModel):
@@ -51,7 +52,7 @@ def sessions_needing_dream(
             " from public.sessions s where s.user_id = %s"
             " and (%s::text is null or s.repo = %s::text) and exists (select 1"
             "   from public.events e where e.session_id = s.id and not e.dreamed)"
-            " order by s.started_at for no key update of s skip locked",
+            " order by s.started_at, s.id",
             (user_id, repo, repo),
         )
         return cur.fetchall()
@@ -103,7 +104,8 @@ def consolidate_session(
     )
     conn.execute(
         "update public.sessions set dreamed_through_seq = greatest(dreamed_through_seq, %s)"
-        " where id = %s",
+        " where id = (select id from public.sessions where id = %s"
+        " for no key update skip locked)",
         (raw[-1].seq, session.id),
     )
     counts.sessions_processed += 1
@@ -142,6 +144,24 @@ def _apply_candidate(
         counts.memories_added += 1
         return
     decision = llm.reconcile(nearest.content, content, candidate.scope)
+    if decision.action == "flag" and isinstance(llm, SymphonyLlm):
+
+        def read_evidence() -> str:
+            rows = conn.execute(
+                "select kind, left(payload::text, 1000) from public.events"
+                " where user_id = %s and (session_id = %s or session_id in ("
+                " select unnest(source_session_ids) from public.memories"
+                " where id = %s and user_id = %s)) order by id desc limit 12",
+                (session.user_id, session.id, nearest.id, session.user_id),
+            ).fetchall()
+            return redact_secrets(
+                "\n".join(f"{kind}: {body}" for kind, body in reversed(rows))
+            ).text
+
+        decision = (
+            llm.investigate_conflict(nearest.content, content, candidate.scope, read_evidence)
+            or decision
+        )
     decided = redact_secrets(decision.content).text
     decided_vector = (
         vector if decided == content else to_vector_literal(embedder.embed([decided])[0])

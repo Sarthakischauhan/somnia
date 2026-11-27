@@ -8,10 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from somnia.config import ApiSettings
 from somnia.db.connection import Conn
-from somnia.providers.protocols import MemoryScope, MemoryType
-from somnia.records import CheckpointRecord
-from somnia.retrieval.profile_context import ProjectProfileOut, load_profile
-from somnia.store.admin_conflicts import (
+from somnia.dreaming.management import (
+    DreamRunRecord,
+    DreamSchedule,
+    dream_schedule,
+    list_dream_runs,
+    request_dream,
+)
+from somnia.memory.conflicts import (
     ConflictAlreadyResolvedError,
     ConflictOutcome,
     ConflictResolution,
@@ -20,14 +24,7 @@ from somnia.store.admin_conflicts import (
     list_conflicts,
     resolve_conflict,
 )
-from somnia.store.admin_dreams import (
-    DreamRunRecord,
-    DreamSchedule,
-    dream_schedule,
-    list_dream_runs,
-    request_dream,
-)
-from somnia.store.admin_memories import (
+from somnia.memory.manage import (
     MemoryDetail,
     MemoryFilter,
     MemoryPage,
@@ -40,14 +37,19 @@ from somnia.store.admin_memories import (
     memory_detail,
     patch_memory,
 )
-from somnia.store.admin_overview import TaskQueue, latest_checkpoints, task_queue
+from somnia.memory.models import MemoryScope, MemoryType
+from somnia.retrieval.profile_context import ProjectProfileOut, load_profile
+from somnia.sessions.models import CheckpointRecord
+from somnia.sessions.overview import TaskQueue, latest_checkpoints, task_queue
 
 TaskStatusName = Literal["queued", "running", "done", "failed"]
 
 
-def build_admin_router(scoped: Callable[..., Iterator[Conn]], settings: ApiSettings) -> APIRouter:
-    router = APIRouter(prefix="/v1/admin", tags=["admin"])
-    Db = Annotated[Conn, Depends(scoped)]  # noqa: N806 - type alias
+def build_management_router(
+    scoped: Callable[..., Iterator[Conn]], settings: ApiSettings
+) -> APIRouter:
+    router = APIRouter(tags=["management"])
+    Db = Annotated[Conn, Depends(scoped, scope="function")]  # noqa: N806 - type alias
 
     @router.get("/memories")
     def get_memories(

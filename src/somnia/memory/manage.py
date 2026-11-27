@@ -7,8 +7,8 @@ from psycopg.rows import class_row
 from pydantic import BaseModel, Field
 
 from somnia.db.connection import Conn
-from somnia.providers.protocols import MemoryScope, MemoryType
-from somnia.records import SessionRecord
+from somnia.memory.models import MemoryScope, MemoryType
+from somnia.sessions.models import SessionRecord
 
 _COLUMNS = (
     "id, type, scope, repo, branch, content, confidence, use_count, last_used_at,"

@@ -8,17 +8,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from somnia.api.dependencies import Scoped
 from somnia.api.schemas import TaskCompletion, TaskStatus
-from somnia.records import CheckpointRecord, TaskRecord
-from somnia.store.checkpoints import latest_checkpoint_for_session, latest_open_checkpoint
-from somnia.store.tasks import TaskDraft, claim_task, complete_task, enqueue_task, get_task
+from somnia.sessions.checkpoints import latest_checkpoint_for_session, latest_open_checkpoint
+from somnia.sessions.models import CheckpointRecord, TaskRecord
+from somnia.sessions.sessions import get_session
+from somnia.sessions.tasks import TaskDraft, claim_task, complete_task, enqueue_task, get_task
 
 
 def build_tasks_router(scoped: Callable[..., Iterator[Scoped]]) -> APIRouter:
     router = APIRouter(prefix="/v1/tasks", tags=["tasks"])
-    Db = Annotated[Scoped, Depends(scoped)]  # noqa: N806 - type alias
+    Db = Annotated[Scoped, Depends(scoped, scope="function")]  # noqa: N806 - type alias
 
     @router.post("", status_code=status.HTTP_201_CREATED)
     def post_task(body: TaskDraft, db: Db) -> TaskRecord:
+        if body.session_id is not None and get_session(db.conn, body.session_id) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found")
         return enqueue_task(db.conn, db.principal, body)
 
     @router.post("/claim", response_model=None)

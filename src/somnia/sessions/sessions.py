@@ -6,7 +6,7 @@ from psycopg.rows import class_row
 
 from somnia.auth.principal import Principal
 from somnia.db.connection import Conn
-from somnia.records import SessionRecord
+from somnia.sessions.models import SessionRecord
 
 _COLUMNS = "id, device_id, repo, branch, git_ref, status, started_at, last_event_at, ended_at"
 

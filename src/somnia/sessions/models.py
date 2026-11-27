@@ -1,4 +1,4 @@
-"""Row models shared by the store layer and API responses."""
+"""Session, checkpoint, and task records."""
 
 from datetime import datetime
 from typing import Literal

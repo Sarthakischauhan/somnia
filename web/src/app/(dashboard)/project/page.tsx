@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 type Search = Record<string, string | string[] | undefined>;
 
 async function loadProfile(api: Awaited<ReturnType<typeof somnia>>, repo: string): Promise<ProjectProfile | null> {
-  const result = await api.GET("/v1/admin/project-profile", { params: { query: { repo } } });
+  const result = await api.GET("/v1/project-profile", { params: { query: { repo } } });
   if (result.response.status === 404) return null;
   return unwrap(result);
 }
@@ -44,7 +44,7 @@ function Provenance({ entry }: { entry: ProfileEntry }) {
 export default async function ProjectPage({ searchParams }: { searchParams: Promise<Search> }) {
   const params = await searchParams;
   const api = await somnia();
-  const repos = [...new Set(unwrap(await api.GET("/v1/admin/repos")).map((r) => r.repo))];
+  const repos = [...new Set(unwrap(await api.GET("/v1/repos")).map((r) => r.repo))];
   const requested = Array.isArray(params.repo) ? params.repo[0] : params.repo;
   const repo = requested && repos.includes(requested) ? requested : repos[0];
   const profile = repo ? await loadProfile(api, repo) : null;

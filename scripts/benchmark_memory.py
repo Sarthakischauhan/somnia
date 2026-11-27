@@ -5,7 +5,7 @@ import json
 import os
 import statistics
 from collections.abc import Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from time import perf_counter
@@ -14,21 +14,28 @@ from uuid import uuid4
 
 import httpx
 import psycopg
+from core_ai import StreamEvent
 from fastapi.testclient import TestClient
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from pydantic import SecretStr
 
 from somnia.api.app import create_app
-from somnia.config import ApiSettings, ProviderSettings
+from somnia.config import ApiSettings, DreamPolicy, ProviderSettings
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
 from somnia.ingest.pipeline import process_pending_events
-from somnia.providers.fake import FakeEmbedder, FakeLlm
-from somnia.providers.openai_compat import OpenAiEmbedder, OpenAiLlm
-from somnia.providers.protocols import ProfileItem, ProfileSection, ReconcileDecision, SessionDigest
+from somnia.memory.inference import OpenAiEmbedder, SymphonyLlm, embedding_client
+from somnia.memory.models import (
+    Embedder,
+    Llm,
+    ProfileItem,
+    ProfileSection,
+    ReconcileDecision,
+    SessionDigest,
+)
 from somnia.retrieval.tokenizer import TiktokenCounter
 from tests.conftest import ROOT, make_device
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 FACTS = [
     "Quartz ledger rebuild uses the amber snapshot manifest",
@@ -77,18 +84,12 @@ class Usage:
         self.input_tokens = self.output_tokens = self.calls = 0
         self.missing_usage = 0
 
-    def record(self, response: httpx.Response) -> None:
-        response.raise_for_status()
-        if not response.request.url.path.endswith("/chat/completions"):
-            return
+    def record(self, event: StreamEvent) -> None:
         self.calls += 1
-        response.read()
-        usage = response.json().get("usage")
-        if usage is None or not {"prompt_tokens", "completion_tokens"} <= usage.keys():
+        if event.prompt_tokens is None or event.completion_tokens is None:
             self.missing_usage += 1
-            return
-        self.input_tokens += usage["prompt_tokens"]
-        self.output_tokens += usage["completion_tokens"]
+        self.input_tokens += event.prompt_tokens or 0
+        self.output_tokens += event.completion_tokens or 0
 
 
 @contextmanager
@@ -169,20 +170,16 @@ def run_case(url: str, sessions: list[list[dict[str, Any]]], mode: str) -> dict[
     with (
         database(url) as (service, api),
         psycopg.connect(service, autocommit=True) as conn,
-        httpx.Client(
-            base_url=settings.llm_base_url,
-            trust_env=mode == "live",
-            headers={"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"},
-            event_hooks={"response": [live.record]},
-            timeout=settings.request_timeout_s,
-        ) as provider,
+        ExitStack() as resources,
     ):
-        embedder = (
-            FakeEmbedder()
-            if mode == "offline"
-            else OpenAiEmbedder(provider, settings.embedding_model)
-        )
-        llm = offline if mode == "offline" else OpenAiLlm(provider, settings.chat_model)
+        embedder: Embedder
+        llm: Llm
+        if mode == "offline":
+            embedder, llm = FakeEmbedder(), offline
+        else:
+            provider = resources.enter_context(embedding_client(settings))
+            embedder = OpenAiEmbedder(provider, settings.embedding_model)
+            llm = resources.enter_context(SymphonyLlm(settings, live.record))
         owner = make_device(conn)
         stranger = make_device(conn)
         app = create_app(ApiSettings(api_database_url=SecretStr(api)), embedder, clock=lambda: now)

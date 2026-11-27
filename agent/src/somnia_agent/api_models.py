@@ -49,9 +49,16 @@ class ProfileOut(_Response):
     entries: list[ProfileEntryOut]
 
 
+class OpenTaskOut(_Response):
+    id: str
+    title: str
+    status: str
+
+
 class ContextOut(_Response):
     profile: ProfileOut | None = None
     checkpoint: CheckpointOut | None
+    open_tasks: list[OpenTaskOut] = Field(default_factory=list)
     memories: list[MemoryOut]
     token_budget: int
     tokens_used: int

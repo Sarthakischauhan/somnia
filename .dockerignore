@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+!agent/
+!agent/pyproject.toml
+!agent/README.md
+!agent/src/
+!agent/src/**
+**/__pycache__/

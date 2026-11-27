@@ -3,13 +3,19 @@
 import json
 from pathlib import Path
 
+import httpx
 from pydantic import SecretStr
 
 from somnia.api.app import create_app
 from somnia.config import ApiSettings
-from somnia.providers.fake import FakeEmbedder
+from somnia.memory.inference import OpenAiEmbedder
 
-app = create_app(ApiSettings(api_database_url=SecretStr("postgresql://unused")), FakeEmbedder())
+with httpx.Client(trust_env=False) as client:
+    app = create_app(
+        ApiSettings(api_database_url=SecretStr("postgresql://unused")),
+        OpenAiEmbedder(client, "unused"),
+    )
+    schema = app.openapi()
 target = Path(__file__).resolve().parent.parent / "web" / "openapi.json"
-target.write_text(json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n")
+target.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n")
 print(f"wrote {target}")

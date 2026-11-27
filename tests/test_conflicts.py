@@ -7,11 +7,11 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
-from somnia.providers.fake import FakeEmbedder, FakeLlm
 from tests.conftest import FIXED_NOW, Device, make_device, post_session
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 pytestmark = pytest.mark.db
 

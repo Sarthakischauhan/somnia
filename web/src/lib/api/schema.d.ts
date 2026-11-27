@@ -21,7 +21,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/checkpoints/latest": {
+    "/v1/checkpoints/latest": {
         parameters: {
             query?: never;
             header?: never;
@@ -29,7 +29,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Latest Checkpoints */
-        get: operations["get_latest_checkpoints_v1_admin_checkpoints_latest_get"];
+        get: operations["get_latest_checkpoints_v1_checkpoints_latest_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -38,7 +38,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/conflicts": {
+    "/v1/conflicts": {
         parameters: {
             query?: never;
             header?: never;
@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Conflicts */
-        get: operations["get_conflicts_v1_admin_conflicts_get"];
+        get: operations["get_conflicts_v1_conflicts_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -55,7 +55,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/admin/conflicts/{conflict_id}/resolve": {
+    "/v1/conflicts/{conflict_id}/resolve": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,128 +65,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Post Resolve Conflict */
-        post: operations["post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/dream-runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Dream Runs */
-        get: operations["get_dream_runs_v1_admin_dream_runs_get"];
-        put?: never;
-        /** Post Dream Run */
-        post: operations["post_dream_run_v1_admin_dream_runs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/dream-schedule": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Dream Schedule */
-        get: operations["get_dream_schedule_v1_admin_dream_schedule_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/memories": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Memories */
-        get: operations["get_memories_v1_admin_memories_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/memories/{memory_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Memory Detail */
-        get: operations["get_memory_detail_v1_admin_memories__memory_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Patch Memory Route */
-        patch: operations["patch_memory_route_v1_admin_memories__memory_id__patch"];
-        trace?: never;
-    };
-    "/v1/admin/project-profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Project Profile */
-        get: operations["get_project_profile_v1_admin_project_profile_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/repos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Repos */
-        get: operations["get_repos_v1_admin_repos_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/admin/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Tasks */
-        get: operations["get_tasks_v1_admin_tasks_get"];
-        put?: never;
-        post?: never;
+        post: operations["post_resolve_conflict_v1_conflicts__conflict_id__resolve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -202,6 +81,110 @@ export interface paths {
         };
         /** Get Context */
         get: operations["get_context_v1_context_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dream-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dream Runs */
+        get: operations["get_dream_runs_v1_dream_runs_get"];
+        put?: never;
+        /** Post Dream Run */
+        post: operations["post_dream_run_v1_dream_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dream-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dream Schedule */
+        get: operations["get_dream_schedule_v1_dream_schedule_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memories */
+        get: operations["get_memories_v1_memories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memories/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memory Detail */
+        get: operations["get_memory_detail_v1_memories__memory_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Memory Route */
+        patch: operations["patch_memory_route_v1_memories__memory_id__patch"];
+        trace?: never;
+    };
+    "/v1/project-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project Profile */
+        get: operations["get_project_profile_v1_project_profile_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/repos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Repos */
+        get: operations["get_repos_v1_repos_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -302,7 +285,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get Tasks */
+        get: operations["get_tasks_v1_tasks_get"];
         put?: never;
         /** Post Task */
         post: operations["post_task_v1_tasks_post"];
@@ -735,6 +719,23 @@ export interface components {
              */
             role: "user" | "assistant" | "system" | "tool";
         };
+        /** OpenTask */
+        OpenTask: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Session Id */
+            session_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running";
+            /** Title */
+            title: string;
+        };
         /** ProfileEntryOut */
         ProfileEntryOut: {
             /** Confidence */
@@ -796,6 +797,8 @@ export interface components {
             dropped: number;
             /** Memories */
             memories: components["schemas"]["ContextItem"][];
+            /** Open Tasks */
+            open_tasks: components["schemas"]["OpenTask"][];
             profile: components["schemas"]["ProjectProfileOut"] | null;
             /** Token Budget */
             token_budget: number;
@@ -1040,7 +1043,7 @@ export interface operations {
             };
         };
     };
-    get_latest_checkpoints_v1_admin_checkpoints_latest_get: {
+    get_latest_checkpoints_v1_checkpoints_latest_get: {
         parameters: {
             query?: never;
             header?: {
@@ -1071,7 +1074,7 @@ export interface operations {
             };
         };
     };
-    get_conflicts_v1_admin_conflicts_get: {
+    get_conflicts_v1_conflicts_get: {
         parameters: {
             query?: {
                 status?: ("open" | "resolved")[] | null;
@@ -1106,7 +1109,7 @@ export interface operations {
             };
         };
     };
-    post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post: {
+    post_resolve_conflict_v1_conflicts__conflict_id__resolve_post: {
         parameters: {
             query?: never;
             header?: {
@@ -1143,7 +1146,45 @@ export interface operations {
             };
         };
     };
-    get_dream_runs_v1_admin_dream_runs_get: {
+    get_context_v1_context_get: {
+        parameters: {
+            query: {
+                repo: string;
+                branch: string;
+                token_budget?: number | null;
+                k?: number;
+                query?: string | null;
+                checkpoint_first?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionContext"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dream_runs_v1_dream_runs_get: {
         parameters: {
             query?: {
                 limit?: number;
@@ -1176,7 +1217,7 @@ export interface operations {
             };
         };
     };
-    post_dream_run_v1_admin_dream_runs_post: {
+    post_dream_run_v1_dream_runs_post: {
         parameters: {
             query?: never;
             header?: {
@@ -1207,7 +1248,7 @@ export interface operations {
             };
         };
     };
-    get_dream_schedule_v1_admin_dream_schedule_get: {
+    get_dream_schedule_v1_dream_schedule_get: {
         parameters: {
             query?: never;
             header?: {
@@ -1238,7 +1279,7 @@ export interface operations {
             };
         };
     };
-    get_memories_v1_admin_memories_get: {
+    get_memories_v1_memories_get: {
         parameters: {
             query?: {
                 repo?: string | null;
@@ -1279,7 +1320,7 @@ export interface operations {
             };
         };
     };
-    get_memory_detail_v1_admin_memories__memory_id__get: {
+    get_memory_detail_v1_memories__memory_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -1312,7 +1353,7 @@ export interface operations {
             };
         };
     };
-    patch_memory_route_v1_admin_memories__memory_id__patch: {
+    patch_memory_route_v1_memories__memory_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -1349,7 +1390,7 @@ export interface operations {
             };
         };
     };
-    get_project_profile_v1_admin_project_profile_get: {
+    get_project_profile_v1_project_profile_get: {
         parameters: {
             query: {
                 repo: string;
@@ -1382,7 +1423,7 @@ export interface operations {
             };
         };
     };
-    get_repos_v1_admin_repos_get: {
+    get_repos_v1_repos_get: {
         parameters: {
             query?: never;
             header?: {
@@ -1400,78 +1441,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RepoBranch"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_tasks_v1_admin_tasks_get: {
-        parameters: {
-            query?: {
-                status?: ("queued" | "running" | "done" | "failed")[] | null;
-                limit?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TaskQueue"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_context_v1_context_get: {
-        parameters: {
-            query: {
-                repo: string;
-                branch: string;
-                token_budget?: number | null;
-                k?: number;
-                query?: string | null;
-                checkpoint_first?: boolean;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionContext"];
                 };
             };
             /** @description Validation Error */
@@ -1647,6 +1616,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_tasks_v1_tasks_get: {
+        parameters: {
+            query?: {
+                status?: ("queued" | "running" | "done" | "failed")[] | null;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskQueue"];
                 };
             };
             /** @description Validation Error */

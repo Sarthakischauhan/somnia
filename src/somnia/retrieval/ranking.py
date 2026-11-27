@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from somnia.providers.protocols import MemoryScope, MemoryType
+from somnia.memory.models import MemoryScope, MemoryType
 
 
 class MemoryCandidateRow(BaseModel):

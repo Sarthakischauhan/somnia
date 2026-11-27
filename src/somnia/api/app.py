@@ -5,17 +5,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from psycopg import Error
 from psycopg_pool import ConnectionPool
 
-from somnia.api.dependencies import dashboard_dependency, scoped_dependency
-from somnia.api.routes_admin import build_admin_router
+from somnia.api.dependencies import scoped_dependency, user_database_dependency
 from somnia.api.routes_context import build_context_router, utc_now
+from somnia.api.routes_management import build_management_router
 from somnia.api.routes_sessions import build_sessions_router
 from somnia.api.routes_tasks import build_tasks_router
 from somnia.config import ApiSettings
 from somnia.db.connection import Conn
-from somnia.providers.protocols import Embedder
+from somnia.memory.models import Embedder
 
 
 def create_app(
@@ -55,12 +56,19 @@ def create_app(
     scoped = scoped_dependency(pool)
     app.include_router(build_sessions_router(scoped))
     app.include_router(build_tasks_router(scoped))
-    dashboard = dashboard_dependency(pool, scoped, auth_client)
-    app.include_router(build_admin_router(dashboard, settings))
-    app.include_router(build_context_router(scoped, embedder, settings, clock))
+    user_db = user_database_dependency(pool, scoped, auth_client)
+    management = build_management_router(user_db, settings)
+    app.include_router(management, prefix="/v1")
+    app.include_router(management, prefix="/v1/admin", include_in_schema=False)
+    app.include_router(build_context_router(user_db, embedder, settings, clock))
 
     @app.get("/healthz", tags=["ops"])
     def healthz() -> dict[str, str]:
+        try:
+            with pool.connection(timeout=1) as conn:
+                conn.execute("select 1")
+        except Error as exc:
+            raise HTTPException(503, "database unavailable") from exc
         return {"status": "ok"}
 
     return app

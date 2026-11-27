@@ -12,7 +12,7 @@ Legend:
 | --- | --- | --- |
 | [uv](https://docs.astral.sh/uv/) | recent | Python env and deps (`uv.lock`, `agent/uv.lock`) |
 | Python | 3.12 (`requires-python = ">=3.12"`; uv picks 3.12) | API, worker, agent CLI |
-| Node.js | 20+ (CI uses 20) | `web/` admin UI |
+| Node.js | 22+ (CI uses 22) | `web/` dashboard |
 | Docker | any recent | Supabase local stack or the pgvector image (📄) |
 | [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started) | recent | `supabase start`, migrations (📄) |
 
@@ -23,16 +23,17 @@ is how the dev box runs, ✅).
 
 ```
 src/somnia/
-  api/          FastAPI app and routes (/v1/sessions, /v1/context, /v1/tasks, /v1/admin/*)
+  api/          FastAPI app and routes (/v1/sessions, /v1/context, /v1/tasks, /v1/memories)
   ingest/       chunking, redaction and embedding of session events
   retrieval/    ranking, hybrid (memories + undreamt chunks), disputes, profile, token packing
   dreaming/     consolidation, reconciliation, decay, project-profile rebuild, triggers
-  worker/       the worker loop (somnia-worker): ingest, triggers and dreams
-  providers/    LLM and embedder protocols, the deterministic fakes and the OpenAI-compatible client
-  db/ store/ auth/ admin/   connections + RLS transactions, queries, device tokens, admin CLI
+  worker.py     worker entry point for ingestion and dreaming
+  memory/       memory contracts, user management, conflicts and Symphony inference
+  sessions/     session state, checkpoints and explicit tasks
+  db/ auth/ admin/   RLS transactions, access tokens and operator device provisioning
 agent/          somnia-agent CLI (hooks, spool, MCP server); its own pyproject and tests
 plugins/        harness plugins: claude-code/, codex/, grok/
-web/            Next.js admin UI; typed client generated from web/openapi.json
+web/            Next.js dashboard; typed client generated from web/openapi.json
 supabase/
   migrations/   ordered SQL migrations (the schema's source of truth)
   seed.sql      local-only dev user, device token and somnia_api password
@@ -90,21 +91,22 @@ The `search_path` line matters: without it, vector operators in `extensions` are
 ### Run it (✅)
 
 ```bash
-uv run somnia-backend                # API + worker; http://127.0.0.1:8000/docs
+uv run somnia-api                    # http://127.0.0.1:8000/docs
+# In another terminal, run uv run somnia-worker
 # In another terminal, configure web/.env.local per web/README.md, then:
 cd web && npm ci && npm run dev       # http://localhost:3000
 
 # Demo data through the real API and dream pipeline (API must be running):
 SOMNIA_API_URL=http://127.0.0.1:8000 SOMNIA_ADMIN_TOKEN=smn_dev_local_token_change_me \
-  uv run python scripts/seed_demo.py
+  uv run python -m scripts.seed_demo
 
 # A real device token for a user (printed once):
 uv run somnia-admin create-device --user-id 00000000-0000-0000-0000-00000000d0e5 --name laptop
 ```
 
 `seed_demo.py` also needs `SOMNIA_SERVICE_DATABASE_URL`, which it reads from `.env` or the
-environment. The default provider is `fake` (deterministic and offline). Set
-`SOMNIA_PROVIDER=openai` plus `SOMNIA_LLM_*` for a real OpenAI-compatible endpoint.
+environment. The demo script uses deterministic test fixtures. For real worker and semantic
+retrieval calls, configure `SOMNIA_LLM_*` and the model settings in `.env`.
 
 ## Checks (✅ all, the same commands CI runs)
 

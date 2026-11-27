@@ -1084,6 +1084,47 @@
         "title": "MessagePayload",
         "type": "object"
       },
+      "OpenTask": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "session_id"
+        ],
+        "title": "OpenTask",
+        "type": "object"
+      },
       "ProfileEntryOut": {
         "properties": {
           "confidence": {
@@ -1240,6 +1281,13 @@
             "title": "Memories",
             "type": "array"
           },
+          "open_tasks": {
+            "items": {
+              "$ref": "#/components/schemas/OpenTask"
+            },
+            "title": "Open Tasks",
+            "type": "array"
+          },
           "profile": {
             "anyOf": [
               {
@@ -1272,6 +1320,7 @@
         "required": [
           "profile",
           "checkpoint",
+          "open_tasks",
           "memories",
           "token_budget",
           "token_encoding",
@@ -1856,9 +1905,9 @@
         ]
       }
     },
-    "/v1/admin/checkpoints/latest": {
+    "/v1/checkpoints/latest": {
       "get": {
-        "operationId": "get_latest_checkpoints_v1_admin_checkpoints_latest_get",
+        "operationId": "get_latest_checkpoints_v1_checkpoints_latest_get",
         "parameters": [
           {
             "in": "header",
@@ -1885,7 +1934,7 @@
                   "items": {
                     "$ref": "#/components/schemas/CheckpointRecord"
                   },
-                  "title": "Response Get Latest Checkpoints V1 Admin Checkpoints Latest Get",
+                  "title": "Response Get Latest Checkpoints V1 Checkpoints Latest Get",
                   "type": "array"
                 }
               }
@@ -1905,13 +1954,13 @@
         },
         "summary": "Get Latest Checkpoints",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/conflicts": {
+    "/v1/conflicts": {
       "get": {
-        "operationId": "get_conflicts_v1_admin_conflicts_get",
+        "operationId": "get_conflicts_v1_conflicts_get",
         "parameters": [
           {
             "in": "query",
@@ -1997,7 +2046,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ConflictView"
                   },
-                  "title": "Response Get Conflicts V1 Admin Conflicts Get",
+                  "title": "Response Get Conflicts V1 Conflicts Get",
                   "type": "array"
                 }
               }
@@ -2017,13 +2066,13 @@
         },
         "summary": "Get Conflicts",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/conflicts/{conflict_id}/resolve": {
+    "/v1/conflicts/{conflict_id}/resolve": {
       "post": {
-        "operationId": "post_resolve_conflict_v1_admin_conflicts__conflict_id__resolve_post",
+        "operationId": "post_resolve_conflict_v1_conflicts__conflict_id__resolve_post",
         "parameters": [
           {
             "in": "path",
@@ -2086,13 +2135,138 @@
         },
         "summary": "Post Resolve Conflict",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/dream-runs": {
+    "/v1/context": {
       "get": {
-        "operationId": "get_dream_runs_v1_admin_dream_runs_get",
+        "operationId": "get_context_v1_context_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "repo",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Repo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "branch",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Branch",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token_budget",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 200000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token Budget"
+            }
+          },
+          {
+            "in": "query",
+            "name": "k",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "K",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Query"
+            }
+          },
+          {
+            "in": "query",
+            "name": "checkpoint_first",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Checkpoint First",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Context",
+        "tags": [
+          "retrieval"
+        ]
+      }
+    },
+    "/v1/dream-runs": {
+      "get": {
+        "operationId": "get_dream_runs_v1_dream_runs_get",
         "parameters": [
           {
             "in": "query",
@@ -2131,7 +2305,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DreamRunRecord"
                   },
-                  "title": "Response Get Dream Runs V1 Admin Dream Runs Get",
+                  "title": "Response Get Dream Runs V1 Dream Runs Get",
                   "type": "array"
                 }
               }
@@ -2151,11 +2325,11 @@
         },
         "summary": "Get Dream Runs",
         "tags": [
-          "admin"
+          "management"
         ]
       },
       "post": {
-        "operationId": "post_dream_run_v1_admin_dream_runs_post",
+        "operationId": "post_dream_run_v1_dream_runs_post",
         "parameters": [
           {
             "in": "header",
@@ -2198,13 +2372,13 @@
         },
         "summary": "Post Dream Run",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/dream-schedule": {
+    "/v1/dream-schedule": {
       "get": {
-        "operationId": "get_dream_schedule_v1_admin_dream_schedule_get",
+        "operationId": "get_dream_schedule_v1_dream_schedule_get",
         "parameters": [
           {
             "in": "header",
@@ -2247,13 +2421,13 @@
         },
         "summary": "Get Dream Schedule",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/memories": {
+    "/v1/memories": {
       "get": {
-        "operationId": "get_memories_v1_admin_memories_get",
+        "operationId": "get_memories_v1_memories_get",
         "parameters": [
           {
             "in": "query",
@@ -2431,13 +2605,13 @@
         },
         "summary": "Get Memories",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/memories/{memory_id}": {
+    "/v1/memories/{memory_id}": {
       "get": {
-        "operationId": "get_memory_detail_v1_admin_memories__memory_id__get",
+        "operationId": "get_memory_detail_v1_memories__memory_id__get",
         "parameters": [
           {
             "in": "path",
@@ -2490,11 +2664,11 @@
         },
         "summary": "Get Memory Detail",
         "tags": [
-          "admin"
+          "management"
         ]
       },
       "patch": {
-        "operationId": "patch_memory_route_v1_admin_memories__memory_id__patch",
+        "operationId": "patch_memory_route_v1_memories__memory_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -2557,13 +2731,13 @@
         },
         "summary": "Patch Memory Route",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/project-profile": {
+    "/v1/project-profile": {
       "get": {
-        "operationId": "get_project_profile_v1_admin_project_profile_get",
+        "operationId": "get_project_profile_v1_project_profile_get",
         "parameters": [
           {
             "in": "query",
@@ -2616,13 +2790,13 @@
         },
         "summary": "Get Project Profile",
         "tags": [
-          "admin"
+          "management"
         ]
       }
     },
-    "/v1/admin/repos": {
+    "/v1/repos": {
       "get": {
-        "operationId": "get_repos_v1_admin_repos_get",
+        "operationId": "get_repos_v1_repos_get",
         "parameters": [
           {
             "in": "header",
@@ -2649,7 +2823,7 @@
                   "items": {
                     "$ref": "#/components/schemas/RepoBranch"
                   },
-                  "title": "Response Get Repos V1 Admin Repos Get",
+                  "title": "Response Get Repos V1 Repos Get",
                   "type": "array"
                 }
               }
@@ -2669,218 +2843,7 @@
         },
         "summary": "Get Repos",
         "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/v1/admin/tasks": {
-      "get": {
-        "operationId": "get_tasks_v1_admin_tasks_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "status",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "items": {
-                    "enum": [
-                      "queued",
-                      "running",
-                      "done",
-                      "failed"
-                    ],
-                    "type": "string"
-                  },
-                  "type": "array"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 50,
-              "maximum": 200,
-              "minimum": 1,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskQueue"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Tasks",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/v1/context": {
-      "get": {
-        "operationId": "get_context_v1_context_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "repo",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Repo",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "branch",
-            "required": true,
-            "schema": {
-              "minLength": 1,
-              "title": "Branch",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token_budget",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "maximum": 200000,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Token Budget"
-            }
-          },
-          {
-            "in": "query",
-            "name": "k",
-            "required": false,
-            "schema": {
-              "default": 10,
-              "maximum": 100,
-              "minimum": 1,
-              "title": "K",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Query"
-            }
-          },
-          {
-            "in": "query",
-            "name": "checkpoint_first",
-            "required": false,
-            "schema": {
-              "default": false,
-              "title": "Checkpoint First",
-              "type": "boolean"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SessionContext"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Context",
-        "tags": [
-          "retrieval"
+          "management"
         ]
       }
     },
@@ -3200,6 +3163,90 @@
       }
     },
     "/v1/tasks": {
+      "get": {
+        "operationId": "get_tasks_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "queued",
+                      "running",
+                      "done",
+                      "failed"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskQueue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Tasks",
+        "tags": [
+          "management"
+        ]
+      },
       "post": {
         "operationId": "post_task_v1_tasks_post",
         "parameters": [

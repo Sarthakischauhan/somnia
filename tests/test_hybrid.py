@@ -7,14 +7,14 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
 from somnia.ingest.pipeline import process_pending_events
-from somnia.providers.fake import FakeEmbedder, FakeLlm
 from somnia.retrieval.hybrid import ChunkCandidateRow, chunk_items, merge_ranked
 from somnia.retrieval.ranking import RankedMemory
 from tests.conftest import FIXED_NOW, Device, post_session
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 
 def _memory(score_similarity: float, confidence: float) -> RankedMemory:

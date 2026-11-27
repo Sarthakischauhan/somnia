@@ -10,13 +10,12 @@ from pydantic import SecretStr
 
 from somnia.api.app import create_app
 from somnia.auth.supabase import resolve_dashboard_user
-from somnia.config import ApiSettings
+from somnia.config import ApiSettings, DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
-from somnia.providers.fake import FakeEmbedder, FakeLlm
 from tests.conftest import FIXED_NOW, make_device, post_session
 from tests.conftest import TestDatabase as Database
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 
 @pytest.mark.parametrize(
@@ -69,7 +68,7 @@ def test_dashboard_and_devices_share_only_their_owners_data(
         post_session(client, alice, ["remember: Alice uses uv"])
         post_session(client, bob, ["remember: Bob uses npm"])
         run_dream(service_conn, FakeLlm(), FakeEmbedder(), DreamPolicy(), FIXED_NOW)
-        memories = "/v1/admin/memories"
+        memories = "/v1/memories"
         alice_jwt = {"Authorization": "Bearer alice.jwt"}
         bob_jwt = {"Authorization": "Bearer bob.jwt"}
         assert client.get(memories).status_code == 401
@@ -80,6 +79,12 @@ def test_dashboard_and_devices_share_only_their_owners_data(
         assert [m["content"] for m in first] == ["Alice uses uv"]
         assert [m["content"] for m in second] == ["Bob uses npm"]
         assert client.get(memories, headers=alice.headers).json()["items"] == first
+        assert client.get("/v1/admin/memories", headers=alice_jwt).json()["items"] == first
+        context = client.get(
+            "/v1/context", headers=alice_jwt, params={"repo": "acme/api", "branch": "main"}
+        )
+        assert context.status_code == 200, context.text
+        assert "Bob uses npm" not in context.text
         target = f"{memories}/{first[0]['id']}"
         assert client.get(target, headers=bob_jwt).status_code == 404
         assert client.patch(target, headers=bob_jwt, json={"archived": True}).status_code == 404

@@ -6,7 +6,7 @@ import re
 from collections.abc import Sequence
 
 from somnia.db.vectors import EMBEDDING_DIM
-from somnia.providers.protocols import (
+from somnia.memory.models import (
     MemoryCandidate,
     MemoryScope,
     MemoryType,

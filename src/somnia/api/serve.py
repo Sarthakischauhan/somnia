@@ -6,7 +6,7 @@ import uvicorn
 
 from somnia.api.app import create_app
 from somnia.config import ApiSettings, ProviderSettings
-from somnia.providers.factory import build_providers
+from somnia.memory.inference import OpenAiEmbedder, embedding_client
 
 
 def main() -> None:
@@ -18,6 +18,12 @@ def main() -> None:
         raise SystemExit("PORT must be an integer between 1 and 65535") from None
 
     settings = ApiSettings()  # values come from the environment
-    providers = build_providers(ProviderSettings())
+    provider = ProviderSettings()
     host = os.environ.get("SOMNIA_HOST", "127.0.0.1")
-    uvicorn.run(create_app(settings, providers.embedder), host=host, port=port, workers=1)
+    with embedding_client(provider) as client:
+        uvicorn.run(
+            create_app(settings, OpenAiEmbedder(client, provider.embedding_model)),
+            host=host,
+            port=port,
+            workers=1,
+        )

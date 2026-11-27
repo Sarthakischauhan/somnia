@@ -7,14 +7,14 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
 from somnia.dreaming.profile_builder import rebuild_profile
-from somnia.providers.fake import FakeEmbedder, FakeLlm
-from somnia.providers.protocols import ProfileItem, ProfileSection
+from somnia.memory.models import ProfileItem, ProfileSection
 from somnia.retrieval.tokenizer import TiktokenCounter
 from tests.conftest import FIXED_NOW, Device, make_device, post_session
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 pytestmark = pytest.mark.db
 

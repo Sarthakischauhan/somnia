@@ -14,7 +14,7 @@ from psycopg.rows import class_row
 from pydantic import BaseModel
 
 from somnia.db.connection import Conn
-from somnia.providers.protocols import MemoryScope, MemoryType
+from somnia.memory.models import MemoryScope, MemoryType
 from somnia.retrieval.ranking import RankedMemory, recency_factor
 
 

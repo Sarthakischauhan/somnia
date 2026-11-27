@@ -6,11 +6,11 @@ from datetime import timedelta
 import pytest
 from fastapi.testclient import TestClient
 
+from somnia.config import DreamPolicy
 from somnia.db.connection import Conn
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
-from somnia.providers.fake import FakeEmbedder, FakeLlm
 from tests.conftest import FIXED_NOW, Device
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 pytestmark = pytest.mark.db
 
@@ -279,7 +279,7 @@ def test_run_timestamps_are_wall_clock_not_logical_now(
 def test_exact_duplicate_keeps_provenance_without_reconcile(
     client: TestClient, device: Device, service_conn: Conn
 ) -> None:
-    from somnia.providers.protocols import MemoryScope, ReconcileDecision
+    from somnia.memory.models import MemoryScope, ReconcileDecision
 
     class NoReconcile(FakeLlm):
         def reconcile(

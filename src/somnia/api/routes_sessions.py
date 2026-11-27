@@ -9,14 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from somnia.api.dependencies import Scoped
 from somnia.api.schemas import EventBatch, SessionCreate, SessionStatus
 from somnia.ingest.event_models import GitRefEvent
-from somnia.records import CheckpointRecord, SessionRecord
-from somnia.store.checkpoints import (
+from somnia.ingest.events import InsertOutcome, count_unprocessed, insert_events
+from somnia.sessions.checkpoints import (
     CheckpointDraft,
     create_checkpoint,
     latest_checkpoint_for_session,
 )
-from somnia.store.events import InsertOutcome, count_unprocessed, insert_events
-from somnia.store.sessions import close_session, create_session, get_session, touch_session
+from somnia.sessions.models import CheckpointRecord, SessionRecord
+from somnia.sessions.sessions import close_session, create_session, get_session, touch_session
 
 
 def _require_session(scoped: Scoped, session_id: UUID) -> SessionRecord:
@@ -28,7 +28,7 @@ def _require_session(scoped: Scoped, session_id: UUID) -> SessionRecord:
 
 def build_sessions_router(scoped: Callable[..., Iterator[Scoped]]) -> APIRouter:
     router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
-    Db = Annotated[Scoped, Depends(scoped)]  # noqa: N806 - type alias
+    Db = Annotated[Scoped, Depends(scoped, scope="function")]  # noqa: N806 - type alias
 
     @router.post("", status_code=status.HTTP_201_CREATED)
     def post_session(body: SessionCreate, db: Db) -> SessionRecord:
@@ -39,7 +39,8 @@ def build_sessions_router(scoped: Callable[..., Iterator[Scoped]]) -> APIRouter:
         _require_session(db, session_id)
         outcome = insert_events(db.conn, db.principal.user_id, session_id, body.events)
         refs = [e.payload.ref for e in body.events if isinstance(e, GitRefEvent)]
-        touch_session(db.conn, session_id, refs[-1] if refs else None)
+        if outcome.accepted:
+            touch_session(db.conn, session_id, refs[-1] if refs else None)
         return outcome
 
     @router.post("/{session_id}/checkpoints", status_code=status.HTTP_201_CREATED)

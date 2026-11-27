@@ -1,6 +1,6 @@
 import httpx
 
-from somnia.providers.openai_compat import OpenAiEmbedder
+from somnia.memory.inference import OpenAiEmbedder
 
 
 def test_embedding_response_accepts_gemini_omitted_zero_index() -> None:

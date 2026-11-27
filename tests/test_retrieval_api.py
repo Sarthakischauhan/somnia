@@ -8,11 +8,11 @@ from fastapi.testclient import TestClient
 
 from somnia.db.connection import Conn
 from somnia.db.vectors import to_vector_literal
-from somnia.providers.fake import FakeEmbedder
-from somnia.records import CheckpointRecord
 from somnia.retrieval.context import checkpoint_text
 from somnia.retrieval.tokenizer import TiktokenCounter
+from somnia.sessions.models import CheckpointRecord
 from tests.conftest import FIXED_NOW, Device
+from tests.fixtures.providers import FakeEmbedder
 
 pytestmark = pytest.mark.db
 
@@ -130,3 +130,32 @@ def test_context_packs_checkpoint_and_memories_under_token_budget(
     assert body["tokens_used"] == budget
     assert len(body["memories"]) == 2
     assert body["dropped"] == 3
+
+
+def test_handoff_returns_open_tasks_to_a_second_device(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    from somnia.auth.tokens import generate_device_token, hash_device_token
+    from tests.conftest import make_device, post_session
+
+    session_id = post_session(client, device, ["continue the migration"])
+    token = generate_device_token()
+    service_conn.execute(
+        "insert into public.devices (user_id, name, token_hash) values (%s, 'second', %s)",
+        (device.user_id, hash_device_token(token)),
+    )
+    for body in (
+        {"title": "Ship schema", "session_id": session_id},
+        {"title": "Other branch", "repo": "acme/api", "branch": "other"},
+    ):
+        response = client.post("/v1/tasks", json=body, headers=device.headers)
+        assert response.status_code == 201, response.text
+    stranger = make_device(service_conn)
+    params: dict[str, str | int] = {"repo": "acme/api", "branch": "main", "token_budget": 1}
+    handoff = client.get("/v1/context", params=params, headers={"Authorization": f"Bearer {token}"})
+    assert handoff.status_code == 200, handoff.text
+    assert [task["title"] for task in handoff.json()["open_tasks"]] == ["Ship schema"]
+    assert (
+        client.get("/v1/context", params=params, headers=stranger.headers).json()["open_tasks"]
+        == []
+    )

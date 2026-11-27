@@ -46,18 +46,19 @@ def scoped_dependency(pool: ConnectionPool[Conn]) -> Callable[..., Iterator[Scop
     return dependency
 
 
-def dashboard_dependency(
+def user_database_dependency(
     pool: ConnectionPool[Conn],
     device_scope: Callable[[str | None], Iterator[Scoped]],
     auth_client: httpx.Client | None,
 ) -> Callable[..., Iterator[Conn]]:
     def dependency(authorization: Annotated[str | None, Header()] = None) -> Iterator[Conn]:
         token = _bearer_token(authorization)
-        if token.startswith(TOKEN_PREFIX) or auth_client is None:
-            # Preserve existing CLI/admin API callers. The web app never uses this path.
+        if token.startswith(TOKEN_PREFIX):
             with contextmanager(device_scope)(authorization) as scoped:
                 yield scoped.conn
             return
+        if auth_client is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid bearer token")
         user_id = resolve_dashboard_user(auth_client, token)
         with pool.connection() as conn, user_transaction(conn, user_id):
             yield conn

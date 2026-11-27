@@ -7,7 +7,7 @@ from psycopg.rows import class_row
 from pydantic import BaseModel
 
 from somnia.db.connection import Conn
-from somnia.providers.protocols import MemoryCandidate
+from somnia.memory.models import MemoryCandidate
 
 
 class NearestMemory(BaseModel):

@@ -1,4 +1,4 @@
-# somnia admin UI
+# Somnia dashboard
 
 Next.js 15 App Router + shadcn/ui. Users sign in with GitHub via Supabase Auth (PKCE). The dashboard verifies the user with Supabase and sends the user's Supabase access JWT to the Somnia FastAPI service as a server-to-server bearer token. The API must be configured to accept JWTs from the same Supabase project and authorize dashboard access. There is no shared dashboard credential or fallback.
 

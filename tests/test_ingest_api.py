@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 
 from somnia.db.connection import Conn
 from somnia.ingest.pipeline import process_pending_events
-from somnia.providers.fake import FakeEmbedder
 from tests.conftest import Device, make_device
+from tests.fixtures.providers import FakeEmbedder
 
 pytestmark = pytest.mark.db
 
@@ -188,3 +188,41 @@ def test_secrets_are_redacted_before_events_are_stored(
         assert secret not in stored
     assert '"api_key": "[REDACTED]"' in stored
     assert '"name": "bash"' in stored
+
+
+def test_worker_claims_skip_locked_batches_for_concurrent_users(
+    client: TestClient, device: Device, service_conn: Conn
+) -> None:
+    from collections.abc import Sequence
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    import psycopg
+
+    from tests.conftest import make_device, post_session
+
+    post_session(client, device, ["first user"])
+    post_session(client, make_device(service_conn), ["second user"])
+    claiming, release = Event(), Event()
+
+    class PausedEmbedder(FakeEmbedder):
+        def embed(self, texts: Sequence[str]) -> list[list[float]]:
+            claiming.set()
+            assert release.wait(5), "test did not release the first worker"
+            return super().embed(texts)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(
+            process_pending_events, service_conn, PausedEmbedder(), 1, 1200, 150
+        )
+        try:
+            assert claiming.wait(5)
+            with psycopg.connect(service_conn.info.dsn, autocommit=True) as second:
+                second.execute("set statement_timeout = 1000")
+                assert process_pending_events(second, FakeEmbedder(), 2, 1200, 150) == 1
+        finally:
+            release.set()
+        assert first.result() == 1
+    assert service_conn.execute(
+        "select count(*), count(distinct user_id) from public.chunks"
+    ).fetchone() == (2, 2)

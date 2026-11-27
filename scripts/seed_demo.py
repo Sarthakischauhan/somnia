@@ -12,10 +12,10 @@ from datetime import UTC, datetime, timedelta
 import httpx
 import psycopg
 
+from somnia.config import DreamPolicy
 from somnia.db.vectors import to_vector_literal
 from somnia.dreaming.dream import run_dream
-from somnia.dreaming.policy import DreamPolicy
-from somnia.providers.fake import FakeEmbedder, FakeLlm
+from tests.fixtures.providers import FakeEmbedder, FakeLlm
 
 SESSIONS: list[tuple[str, str, list[str], list[str]]] = [
     (

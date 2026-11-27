@@ -51,7 +51,7 @@ export default async function MemoriesPage({ searchParams }: { searchParams: Pro
   const api = await somnia();
   const [page, repos] = await Promise.all([
     api
-      .GET("/v1/admin/memories", {
+      .GET("/v1/memories", {
         params: {
           query: {
             q: values.q,
@@ -66,7 +66,7 @@ export default async function MemoriesPage({ searchParams }: { searchParams: Pro
         },
       })
       .then(unwrap),
-    api.GET("/v1/admin/repos").then(unwrap),
+    api.GET("/v1/repos").then(unwrap),
   ]);
 
   return (

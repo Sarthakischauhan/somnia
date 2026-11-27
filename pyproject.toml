@@ -5,7 +5,7 @@ description = "Shared memory service for coding agents (Supabase Postgres + pgve
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi>=0.121",
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
     "psycopg[binary]>=3.2",
@@ -13,12 +13,13 @@ dependencies = [
     "httpx>=0.27",
     "uvicorn>=0.30",
     "tiktoken>=0.14.0",
+    "symphony-core==0.0.8",
+    "symphony-harness==0.0.10",
 ]
 
 [project.scripts]
 somnia-api = "somnia.api.serve:main"
-somnia-backend = "somnia.supervisor:main"
-somnia-worker = "somnia.worker.main:main"
+somnia-worker = "somnia.worker:main"
 somnia-admin = "somnia.admin.cli:main"
 
 [dependency-groups]

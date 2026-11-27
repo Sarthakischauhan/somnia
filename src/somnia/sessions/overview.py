@@ -6,9 +6,9 @@ from psycopg.rows import class_row
 from pydantic import BaseModel
 
 from somnia.db.connection import Conn
-from somnia.records import CheckpointRecord, TaskRecord
-from somnia.store.checkpoints import CHECKPOINT_COLUMNS
-from somnia.store.tasks import TASK_COLUMNS
+from somnia.sessions.checkpoints import CHECKPOINT_COLUMNS
+from somnia.sessions.models import CheckpointRecord, TaskRecord
+from somnia.sessions.tasks import TASK_COLUMNS
 
 
 class TaskCounts(BaseModel):

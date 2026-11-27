@@ -20,23 +20,22 @@ def insert_events(
     conn: Conn, user_id: UUID, session_id: UUID, events: Sequence[EventIn]
 ) -> InsertOutcome:
     """Payloads are redacted before they reach the table; a retried seq is ignored."""
-    accepted = 0
-    with conn.cursor() as cur:
-        for event in events:
-            cur.execute(
-                "insert into public.events (user_id, session_id, seq, kind, payload)"
-                " values (%s, %s, %s, %s, %s)"
-                " on conflict on constraint events_session_seq_key do nothing",
-                (
-                    user_id,
-                    session_id,
-                    event.seq,
-                    event.kind,
-                    Jsonb(redact_json(event.payload.model_dump(mode="json"))),
-                ),
-            )
-            accepted += cur.rowcount
-    return InsertOutcome(accepted=accepted, duplicates=len(events) - accepted)
+    batch = [
+        {
+            "seq": event.seq,
+            "kind": event.kind,
+            "payload": redact_json(event.payload.model_dump(mode="json")),
+        }
+        for event in events
+    ]
+    cursor = conn.execute(
+        "insert into public.events (user_id, session_id, seq, kind, payload)"
+        " select %s, %s, seq, kind, payload from jsonb_to_recordset(%s)"
+        " as batch(seq bigint, kind text, payload jsonb)"
+        " on conflict on constraint events_session_seq_key do nothing",
+        (user_id, session_id, Jsonb(batch)),
+    )
+    return InsertOutcome(accepted=cursor.rowcount, duplicates=len(events) - cursor.rowcount)
 
 
 def count_unprocessed(conn: Conn, session_id: UUID) -> int:
