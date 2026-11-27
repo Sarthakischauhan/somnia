@@ -1,18 +1,16 @@
 import "server-only";
 
-export interface ServerEnv {
-  apiUrl: string;
-  adminToken: string;
-}
+export function getSomniaApiUrl() {
+  const url = process.env.SOMNIA_API_URL?.trim();
+  if (!url) return null;
 
-function required(name: "SOMNIA_API_URL" | "SOMNIA_ADMIN_TOKEN"): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set (server-side env only)`);
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
   }
-  return value;
-}
-
-export function serverEnv(): ServerEnv {
-  return { apiUrl: required("SOMNIA_API_URL"), adminToken: required("SOMNIA_ADMIN_TOKEN") };
 }

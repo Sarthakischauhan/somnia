@@ -40,10 +40,11 @@ function ChainList({ title, empty, items }: { title: string; empty: string; item
 
 export default async function MemoryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const api = await somnia();
   let detail;
   try {
     detail = unwrap(
-      await somnia().GET("/v1/admin/memories/{memory_id}", { params: { path: { memory_id: id } } }),
+      await api.GET("/v1/admin/memories/{memory_id}", { params: { path: { memory_id: id } } }),
     );
   } catch (error) {
     if (error instanceof ApiError && (error.status === 404 || error.status === 422)) notFound();

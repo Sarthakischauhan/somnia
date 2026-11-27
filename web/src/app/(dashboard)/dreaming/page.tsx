@@ -38,7 +38,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export default async function DreamingPage() {
-  const api = somnia();
+  const api = await somnia();
   const [runs, schedule] = await Promise.all([
     api.GET("/v1/admin/dream-runs", { params: { query: { limit: 50 } } }).then(unwrap),
     api.GET("/v1/admin/dream-schedule").then(unwrap),
