@@ -5,8 +5,8 @@ from typing import Any
 
 import pytest
 from core_ai import BaseProvider, Message, ModelRegistry, StreamEvent
-
 from somnia.providers.protocols import ProfileItem
+
 from somnia.providers.symphony_harness import HarnessLlm
 
 

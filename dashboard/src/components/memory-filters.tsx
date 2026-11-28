@@ -58,6 +58,8 @@ function FilterSelect(props: {
 export function MemoryFilters({ values, repos }: { values: MemoryFilterValues; repos: RepoBranch[] }) {
   const router = useRouter();
   const [query, setQuery] = useState(values.q ?? "");
+  const appliedQuery = values.q ?? "";
+  const debounce = useRef<number | undefined>(undefined);
   const repoNames = [...new Set(repos.map((repo) => repo.repo))];
   const branches = [...new Set(repos.filter((repo) => !values.repo || repo.repo === values.repo).map((repo) => repo.branch))];
 
@@ -71,21 +73,22 @@ export function MemoryFilters({ values, repos }: { values: MemoryFilterValues; r
     router.replace(queryString ? `/memories?${queryString}` : "/memories");
   }
 
-  const current = useRef(values);
-  current.current = values;
-  useEffect(() => {
-    const handle = window.setTimeout(() => {
-      const trimmed = query.trim();
-      if ((current.current.q ?? "") !== trimmed) apply({ ...current.current, q: trimmed || undefined });
+  useEffect(() => () => window.clearTimeout(debounce.current), []);
+
+  function scheduleSearch(nextQuery: string) {
+    setQuery(nextQuery);
+    window.clearTimeout(debounce.current);
+    debounce.current = window.setTimeout(() => {
+      const trimmed = nextQuery.trim();
+      if (appliedQuery !== trimmed) apply({ ...values, q: trimmed || undefined });
     }, 300);
-    return () => window.clearTimeout(handle);
-  }, [query]);
+  }
 
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="grid gap-1.5">
         <Label htmlFor="memory-search">Search</Label>
-        <Input id="memory-search" value={query} placeholder="Search content" className="w-64" onChange={(event) => setQuery(event.target.value)} />
+        <Input id="memory-search" value={query} placeholder="Search content" className="w-64" onChange={(event) => scheduleSearch(event.target.value)} />
       </div>
       <FilterSelect label="Repo" value={values.repo} options={repoNames} onChange={(repo) => apply({ ...values, repo, branch: undefined })} />
       <FilterSelect label="Branch" value={values.branch} options={branches} onChange={(branch) => apply({ ...values, branch })} />

@@ -10,8 +10,6 @@ from collections.abc import Sequence
 from core_ai import ModelRegistry
 from core_harness import CoreHarness, HarnessConfig
 from pydantic import BaseModel
-
-from somnia.providers.prompts import DIGEST_PROMPT, PROFILE_PROMPT, RECONCILE_PROMPT
 from somnia.providers.protocols import (
     MemoryScope,
     ProfileItem,
@@ -20,6 +18,8 @@ from somnia.providers.protocols import (
     ReconcileDecision,
     SessionDigest,
 )
+
+from somnia.providers.prompts import DIGEST_PROMPT, PROFILE_PROMPT, RECONCILE_PROMPT
 
 _JSON_ONLY = "\nReply with the JSON object only: no prose, no code fences."
 
