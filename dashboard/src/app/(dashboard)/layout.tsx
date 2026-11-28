@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
           <header className="flex h-12 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            <span className="text-sm text-muted-foreground">somnia admin</span>
+            <span className="text-sm text-muted-foreground">Somnia</span>
             <form action={signOut} className="ml-auto flex min-w-0 items-center gap-3">
               <span className="hidden truncate text-xs text-muted-foreground sm:block">{user.email}</span>
               <Button size="sm" variant="outline" type="submit">Sign out</Button>

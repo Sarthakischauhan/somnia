@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function AuthCard({ title, description, children }: { title: string; description: string; children: ReactNode }) {
@@ -13,7 +14,7 @@ export function AuthCard({ title, description, children }: { title: string; desc
         </Link>
         <Card className="[--card-spacing:--spacing(6)]">
           <CardHeader className="gap-2">
-            <div className="mb-1 grid size-9 place-items-center rounded-md bg-sidebar-primary font-semibold text-sidebar-primary-foreground" aria-hidden="true">s</div>
+            <BrandMark size={36} />
             <CardTitle className="text-xl font-semibold tracking-tight"><h1>{title}</h1></CardTitle>
             <CardDescription className="leading-relaxed">{description}</CardDescription>
           </CardHeader>

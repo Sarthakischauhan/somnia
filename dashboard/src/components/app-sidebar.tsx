@@ -4,6 +4,7 @@ import { Brain, FolderGit2, GitCompareArrows, History, Moon as DreamIcon } from 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BrandMark } from "@/components/brand-mark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Sidebar,
@@ -34,13 +35,11 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="somnia admin" render={<Link href="/memories" />}>
-                <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold">
-                  s
-                </div>
+            <SidebarMenuButton size="lg" tooltip="Somnia dashboard" render={<Link href="/memories" />}>
+                <BrandMark size={32} />
                 <div className="grid leading-tight">
-                  <span className="font-semibold">somnia</span>
-                  <span className="text-xs text-muted-foreground">admin</span>
+                  <span className="font-semibold">Somnia</span>
+                  <span className="text-xs text-muted-foreground">Memory dashboard</span>
                 </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
