@@ -10,7 +10,8 @@ from collections.abc import Sequence
 from core_ai import ModelRegistry
 from core_harness import CoreHarness, HarnessConfig
 from pydantic import BaseModel
-from somnia.providers.protocols import (
+
+from somnia.memory.models import (
     MemoryScope,
     ProfileItem,
     ProfileSection,
@@ -18,7 +19,6 @@ from somnia.providers.protocols import (
     ReconcileDecision,
     SessionDigest,
 )
-
 from somnia.providers.prompts import DIGEST_PROMPT, PROFILE_PROMPT, RECONCILE_PROMPT
 
 _JSON_ONLY = "\nReply with the JSON object only: no prose, no code fences."
@@ -44,9 +44,10 @@ class HarnessLlm:
             return []
         user = "\n".join(f"{i + 1}. ({item.type}) {item.content}" for i, item in enumerate(items))
         parsed = self._complete(PROFILE_PROMPT, user, ProfileSections)
-        if len(parsed.sections) != len(items):
+        sections = list(parsed.sections)
+        if len(sections) != len(items):
             raise ValueError("profile classification returned the wrong number of sections")
-        return parsed.sections
+        return sections
 
     def _complete[T: BaseModel](self, system: str, user: str, model: type[T]) -> T:
         harness = CoreHarness(

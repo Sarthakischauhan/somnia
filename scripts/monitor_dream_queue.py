@@ -11,7 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg
-from psycopg.rows import dict_row
+from psycopg import Connection
+from psycopg.rows import DictRow, dict_row
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
@@ -33,11 +34,13 @@ def main() -> None:
         connect_timeout=8,
         row_factory=dict_row,
     ) as conn:
-        baseline = conn.execute(
-            "select coalesce(max(e.id), 0) as event_id,"
-            " (select array_agg(r.id) from public.dream_runs r where r.status in"
-            " ('requested', 'running')) as runs from public.events e"
-        ).fetchone()
+        baseline = _required(
+            conn.execute(
+                "select coalesce(max(e.id), 0) as event_id,"
+                " (select array_agg(r.id) from public.dream_runs r where r.status in"
+                " ('requested', 'running')) as runs from public.events e"
+            ).fetchone()
+        )
         event_id = int(baseline["event_id"])
         run_ids = baseline["runs"] or []
         print(
@@ -56,22 +59,32 @@ def main() -> None:
             time.sleep(args.poll_seconds)
 
 
-def _status(conn: psycopg.Connection, event_id: int, run_ids: list[object]) -> dict[str, int]:
-    row = conn.execute(
-        "select count(*) filter (where processed_at is null) as pending,"
-        " count(*) filter (where dreamed) as dreamed"
-        " from public.events where id <= %s",
-        (event_id,),
-    ).fetchone()
+def _required(row: DictRow | None) -> DictRow:
+    if row is None:
+        raise RuntimeError("expected database row was missing")
+    return row
+
+
+def _status(conn: Connection[DictRow], event_id: int, run_ids: list[object]) -> dict[str, int]:
+    row = _required(
+        conn.execute(
+            "select count(*) filter (where processed_at is null) as pending,"
+            " count(*) filter (where dreamed) as dreamed"
+            " from public.events where id <= %s",
+            (event_id,),
+        ).fetchone()
+    )
     active = 0
     failed = 0
     if run_ids:
-        runs = conn.execute(
-            "select count(*) filter (where status in ('requested', 'running')) as active,"
-            " count(*) filter (where status = 'failed') as failed"
-            " from public.dream_runs where id = any(%s)",
-            (run_ids,),
-        ).fetchone()
+        runs = _required(
+            conn.execute(
+                "select count(*) filter (where status in ('requested', 'running')) as active,"
+                " count(*) filter (where status = 'failed') as failed"
+                " from public.dream_runs where id = any(%s)",
+                (run_ids,),
+            ).fetchone()
+        )
         active = int(runs["active"])
         failed = int(runs["failed"])
     return {
@@ -90,14 +103,19 @@ def _line(status: dict[str, int]) -> str:
     )
 
 
-def _report(conn: psycopg.Connection) -> None:
-    memories = conn.execute(
-        "select count(*) as total from public.memories"
-        " where superseded_by is null and archived_at is null"
-    ).fetchone()
-    usage = conn.execute(
-        "select count(*) as requests, coalesce(sum(cost_usd), 0) as cost from public.model_usage"
-    ).fetchone()
+def _report(conn: Connection[DictRow]) -> None:
+    memories = _required(
+        conn.execute(
+            "select count(*) as total from public.memories"
+            " where superseded_by is null and archived_at is null"
+        ).fetchone()
+    )
+    usage = _required(
+        conn.execute(
+            "select count(*) as requests, coalesce(sum(cost_usd), 0) as cost"
+            " from public.model_usage"
+        ).fetchone()
+    )
     print(f"active_memories={memories['total']}", flush=True)
     print(
         f"recorded_requests={usage['requests']} estimated_cost_usd={usage['cost']}",
