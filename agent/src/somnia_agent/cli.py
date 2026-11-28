@@ -1,16 +1,20 @@
 """`somnia-agent` entry point."""
 
 import argparse
+import getpass
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from somnia_agent.config import DEFAULT_API_URL
-from somnia_agent.flush_command import run_flush
-from somnia_agent.harness_payloads import Harness
-from somnia_agent.hook_commands import run_checkpoint, run_context, run_ingest
-from somnia_agent.host_detection import hosted_by_another_harness
-from somnia_agent.login_command import run_login
-from somnia_agent.resume_command import run_resume
+import httpx
+from pydantic import ValidationError
+
+from somnia_agent.api import SomniaClient, make_http
+from somnia_agent.config import DEFAULT_API_URL, AgentConfig, detect, load_config, save_config
+from somnia_agent.context_format import render_context
+from somnia_agent.events import Harness
+from somnia_agent.hooks import hosted_by_another_harness, run_context, run_ingest
+from somnia_agent.uploader import run_flush
 
 DEFAULT_HOOK_TIMEOUT = 1.5
 DEFAULT_CONTEXT_TIMEOUT = 2.0
@@ -49,23 +53,65 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _login(api_url: str, token: str | None, verify: bool) -> int:
+    raw = token if token is not None else getpass.getpass("somnia device token (smn_...): ")
+    try:
+        config = AgentConfig(api_url=api_url, token=raw.strip())
+    except ValidationError as error:
+        print(f"login failed: {error.errors()[0]['msg']}")
+        return 1
+    if verify:
+        try:
+            with make_http(config, 5.0) as http:
+                SomniaClient(http).verify()
+        except httpx.HTTPError as error:
+            print(f"login failed: could not verify token against {config.api_url}: {error}")
+            return 1
+    path = save_config(config)
+    print(f"saved device token for {config.api_url} to {path} (mode 0600)")
+    return 0
+
+
+def _resume(cwd: Path) -> int:
+    config = load_config()
+    if config is None:
+        print("Run somnia-agent login on this device first.", file=sys.stderr)
+        return 1
+    git = detect(cwd)
+    try:
+        with make_http(config, timeout_seconds=5) as http:
+            context = SomniaClient(http).context(
+                git.repo, git.branch, 4000, 10, None, checkpoint_first=True
+            )
+    except httpx.HTTPError as exc:
+        print(f"Could not reach Somnia ({type(exc).__name__}).", file=sys.stderr)
+        return 1
+    print(
+        render_context(context, checkpoint_first=True)
+        or f"No saved Somnia context for {git.repo}@{git.branch}."
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     command: str = args.command
-    if command in {"ingest", "checkpoint", "context"} and hosted_by_another_harness(
-        Harness(args.harness)
-    ):
-        return 0  # the host's own somnia plugin ingests; no spool write, no stdout
-    if command == "ingest":
-        return run_ingest(Harness(args.harness), args.timeout)
-    if command == "checkpoint":
-        return run_checkpoint(Harness(args.harness), args.timeout, args.reason)
-    if command == "context":
-        return run_context(Harness(args.harness), args.timeout, args.token_budget, args.k)
+    if command in {"ingest", "checkpoint", "context"}:
+        harness = Harness(args.harness)
+        if hosted_by_another_harness(harness):
+            return 0  # the host's own Somnia plugin ingests
+        if command == "context":
+            return run_context(harness, args.timeout, args.token_budget, args.k)
+        return run_ingest(
+            harness,
+            args.timeout,
+            force_checkpoint=command == "checkpoint",
+            reason=args.reason if command == "checkpoint" else None,
+        )
     if command == "login":
-        return run_login(args.api_url, args.token, verify=not args.no_verify)
+        return _login(args.api_url, args.token, verify=not args.no_verify)
     if command == "resume":
-        return run_resume(args.cwd)
+        return _resume(args.cwd)
     if command == "flush":
         return run_flush()
     from somnia_agent.mcp_server import run_mcp  # optional dependency

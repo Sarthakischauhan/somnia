@@ -11,6 +11,7 @@ from somnia.memory.memory_store import decay_unused
 from somnia.memory.models import Embedder, Llm
 from somnia.memory.profile_builder import profile_repos, rebuild_profile
 from somnia.memory.run_log import DreamCounts, finish_run, load_request, start_user_run
+from somnia.memory.usage import flush_usage
 
 
 def dream_users(conn: Conn) -> list[UUID]:
@@ -84,11 +85,15 @@ def _dream_for_user(
     """`repo` set: an event-triggered run consolidates and re-profiles only that repo."""
     counts = DreamCounts()
     try:
-        with conn.transaction():
-            # Repo-triggered and scheduled runs can otherwise reconcile the same user in parallel.
-            conn.execute("select pg_advisory_xact_lock(hashtextextended(%s, 0))", (str(user_id),))
-            for session in sessions_needing_dream(conn, user_id, repo):
+        for session in sessions_needing_dream(conn, user_id, repo):
+            with conn.transaction():
+                # Serialize this user without retaining the lock during model calls.
+                conn.execute(
+                    "select pg_advisory_xact_lock(hashtextextended(%s, 0))", (str(user_id),)
+                )
                 consolidate_session(conn, session, llm, embedder, policy, counts, now)
+                flush_usage(conn, user_id, embedder, llm)
+        with conn.transaction():
             counts.memories_decayed = decay_unused(
                 conn,
                 user_id,
@@ -101,6 +106,7 @@ def _dream_for_user(
                 counts.profile_entries_changed += rebuild_profile(
                     conn, user_id, profile_repo, llm, now
                 )
+            flush_usage(conn, user_id, embedder, llm)
     except Exception as exc:
         finish_run(conn, run_id, DreamCounts(), type(exc).__name__, now)
         raise

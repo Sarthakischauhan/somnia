@@ -17,9 +17,10 @@ can run `somnia-agent resume`. Codex and Claude Code can also get the checkpoint
 their Somnia session-start hooks.
 
 The addon records each top-level run's prompt, completed tool results and final reply.
-It queues a checkpoint as tools complete and again after the final reply. The CLI redacts
-and spools events locally, then uploads in the background. An unfinished tool has no result
-to hand off. If uploads are offline, run `somnia-agent flush` on the original device once it
+It sends events to the CLI in order on a background worker, so Symphony doesn't wait for
+Somnia. If capture falls 32 events behind, new events are skipped rather than blocking the
+run. The CLI redacts and spools events locally, queues checkpoints after tool results and
+the final reply, and uploads in the background. An unfinished tool has no result to hand off. If uploads are offline, run `somnia-agent flush` on the original device once it
 reconnects. The Somnia dashboard's **Session handoffs** page shows the latest saved checkpoint
 per repo and branch.
 

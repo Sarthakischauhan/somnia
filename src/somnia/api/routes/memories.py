@@ -1,6 +1,7 @@
 """Dashboard endpoints scoped to the verified browser user or device owner by RLS."""
 
 from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -8,6 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from somnia.config import ApiSettings
 from somnia.db.client import Conn
+from somnia.devices.manage import (
+    CreatedDevice,
+    DeviceName,
+    DeviceRecord,
+    create_device,
+    list_devices,
+    revoke_device,
+)
 from somnia.memory.conflicts import (
     ConflictAlreadyResolvedError,
     ConflictOutcome,
@@ -27,6 +36,7 @@ from somnia.memory.dream_runs import (
 from somnia.memory.manage import (
     MemoryDetail,
     MemoryFilter,
+    MemoryOverview,
     MemoryPage,
     MemoryPatch,
     MemoryRecord,
@@ -35,10 +45,12 @@ from somnia.memory.manage import (
     list_memories,
     list_repo_branches,
     memory_detail,
+    memory_overview,
     patch_memory,
 )
 from somnia.memory.models import MemoryScope, MemoryType
 from somnia.memory.profile_context import ProjectProfileOut, load_profile
+from somnia.memory.usage import UsageSummary, usage_summary
 from somnia.sessions.models import CheckpointRecord
 from somnia.sessions.overview import TaskQueue, latest_checkpoints, task_queue
 
@@ -65,6 +77,34 @@ def build_management_router(
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> MemoryPage:
         return list_memories(
+            db,
+            MemoryFilter(
+                repo=repo,
+                branch=branch,
+                type=type,
+                scope=scope,
+                q=q,
+                include_superseded=include_superseded,
+                include_archived=include_archived,
+                limit=limit,
+                offset=offset,
+            ),
+        )
+
+    @router.get("/memories/overview")
+    def get_memory_overview(
+        db: Db,
+        repo: str | None = None,
+        branch: str | None = None,
+        type: MemoryType | None = None,
+        scope: MemoryScope | None = None,
+        q: str | None = None,
+        include_superseded: bool = False,
+        include_archived: bool = False,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> MemoryOverview:
+        return memory_overview(
             db,
             MemoryFilter(
                 repo=repo,
@@ -111,6 +151,10 @@ def build_management_router(
     def get_dream_schedule(db: Db) -> DreamSchedule:
         return dream_schedule(db, settings.dream_interval_s)
 
+    @router.get("/usage")
+    def get_usage(db: Db, days: Annotated[int, Query(ge=1, le=365)] = 30) -> UsageSummary:
+        return usage_summary(db, datetime.now(UTC), days)
+
     @router.get("/checkpoints/latest")
     def get_latest_checkpoints(db: Db) -> list[CheckpointRecord]:
         return latest_checkpoints(db)
@@ -144,6 +188,24 @@ def build_management_router(
             outcome or ["superseded", "coexist", "flagged"],
             limit,
         )
+
+    @router.get("/devices")
+    def get_devices(db: Db) -> list[DeviceRecord]:
+        return list_devices(db)
+
+    @router.post("/devices", status_code=status.HTTP_201_CREATED)
+    def post_device(body: DeviceName, db: Db) -> CreatedDevice:
+        try:
+            return create_device(db, body.name)
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid device") from exc
+
+    @router.post("/devices/{device_id}/revoke")
+    def post_revoke_device(device_id: UUID, db: Db) -> DeviceRecord:
+        device = revoke_device(db, device_id)
+        if device is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "device not found")
+        return device
 
     @router.post("/conflicts/{conflict_id}/resolve")
     def post_resolve_conflict(conflict_id: UUID, body: ConflictResolution, db: Db) -> ConflictView:

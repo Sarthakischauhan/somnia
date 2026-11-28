@@ -9,12 +9,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from somnia_agent.api_client import SomniaClient
-from somnia_agent.checkpoint_builder import build_checkpoint
-from somnia_agent.git_info import detect
-from somnia_agent.paths import state_dir
+import httpx
+
+from somnia_agent.api import CheckpointIn, SomniaClient, make_http
+from somnia_agent.config import detect, load_config, state_dir
 from somnia_agent.spool import (
     SessionMeta,
+    SpooledEvent,
     acked_seq,
     locked,
     read_events,
@@ -28,6 +29,49 @@ BATCH_SIZE = 200
 MAX_PASSES = 5
 CHECKPOINT_MARKER = "checkpoint.pending"
 CLOSE_MARKER = "close.pending"
+FLUSH_HTTP_TIMEOUT = 10.0
+GOAL_CHARS = 500
+STATE_CHARS = 2000
+MAX_FILES = 50
+
+
+def _message(event: SpooledEvent, role: str) -> str | None:
+    if event.kind != "message" or event.payload.get("role") != role:
+        return None
+    content = event.payload.get("content")
+    return content if isinstance(content, str) and content.strip() else None
+
+
+def _build_checkpoint(
+    events: list[SpooledEvent], reason: str, repo: str, git_ref: str | None
+) -> CheckpointIn:
+    """Draft a checkpoint from spooled events without making a model call."""
+    user_messages = [m for e in events if (m := _message(e, "user"))]
+    files: list[str] = []
+    for event in events:
+        paths = event.payload.get("paths") if event.kind == "files_touched" else None
+        if isinstance(paths, list):
+            files.extend(p for p in paths if isinstance(p, str) and p not in files)
+    goal = user_messages[0] if user_messages else f"Continue work in {repo}"
+    state = f"Session checkpointed ({reason})."
+    for event in reversed(events):
+        if assistant := _message(event, "assistant"):
+            state = assistant
+            break
+        if event.kind == "tool_call":
+            outcome = "failed" if event.payload.get("is_error") else "completed"
+            state = f"Last tool {outcome}: {event.payload.get('name', 'unknown')}"
+            if output := event.payload.get("output"):
+                state += f"\n{output}"
+            break
+    next_steps = [f"Latest request: {user_messages[-1][:GOAL_CHARS]}"] if user_messages else []
+    return CheckpointIn(
+        goal=goal[:GOAL_CHARS],
+        state=state[:STATE_CHARS],
+        next_steps=next_steps,
+        files_touched=files[-MAX_FILES:],
+        git_ref=git_ref,
+    )
 
 
 def spawn_flush() -> None:
@@ -88,7 +132,7 @@ def flush_session(client: SomniaClient, directory: Path) -> None:
     if pending is not None:
         refreshed = read_meta(directory) or meta
         reason = pending.rsplit("\n", 1)[-1].strip() or "hook"
-        draft = build_checkpoint(events, reason, refreshed.repo or "repo", refreshed.git_ref)
+        draft = _build_checkpoint(events, reason, refreshed.repo or "repo", refreshed.git_ref)
         client.post_checkpoint(session_id, draft)
         with locked(directory / "spool.lock"):
             if marker.read_text(encoding="utf-8") == pending:
@@ -113,3 +157,17 @@ def flush_all(client: SomniaClient) -> bool:
             for directory in pending:
                 flush_session(client, directory)
         return True
+
+
+def run_flush() -> int:
+    """Run the detached uploader; transient failures are retried on the next hook."""
+    config = load_config()
+    if config is None:
+        return 0
+    try:
+        with make_http(config, FLUSH_HTTP_TIMEOUT) as http:
+            flush_all(SomniaClient(http))
+    except httpx.HTTPError as error:
+        print(f"flush incomplete, will retry on the next hook: {error}")
+        return 1
+    return 0

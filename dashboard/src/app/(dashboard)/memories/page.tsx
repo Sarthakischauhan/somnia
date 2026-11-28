@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { MemoryStatusBadge } from "@/components/memory-badges";
-import { cleanFilter, MemoryFilters, type MemoryFilterValues } from "@/components/memory-filters";
+import { ANY_FILTER, MemoryFilters, type MemoryFilterValues } from "@/components/memory-filters";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -24,6 +24,10 @@ import { formatDateTime } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 type Search = Record<string, string | string[] | undefined>;
+
+function cleanFilter(value: string | undefined): string | undefined {
+  return value && value !== ANY_FILTER ? value : undefined;
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -49,25 +53,24 @@ export default async function MemoriesPage({ searchParams }: { searchParams: Pro
     include_archived: first(params.include_archived) === "true",
   };
   const api = await somnia();
-  const [page, repos] = await Promise.all([
-    api
-      .GET("/v1/memories", {
-        params: {
-          query: {
-            q: values.q,
-            repo: values.repo,
-            branch: values.branch,
-            type: asType(values.type),
-            scope: asScope(values.scope),
-            include_superseded: values.include_superseded,
-            include_archived: values.include_archived,
-            limit: 100,
-          },
+  const overview = await api
+    .GET("/v1/memories/overview", {
+      params: {
+        query: {
+          q: values.q,
+          repo: values.repo,
+          branch: values.branch,
+          type: asType(values.type),
+          scope: asScope(values.scope),
+          include_superseded: values.include_superseded,
+          include_archived: values.include_archived,
+          limit: 100,
         },
-      })
-      .then(unwrap),
-    api.GET("/v1/repos").then(unwrap),
-  ]);
+      },
+    })
+    .then(unwrap);
+  const page = overview.memories;
+  const repos = overview.repos;
 
   return (
     <div className="space-y-6">

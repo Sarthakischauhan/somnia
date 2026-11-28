@@ -1,7 +1,6 @@
 import pytest
 
-from somnia_agent.event_mapping import hook_to_events
-from somnia_agent.harness_payloads import Harness, parse_hook
+from somnia_agent.events import Harness, hook_to_events, parse_hook
 from tests.conftest import FIXTURES, fixture_bytes
 
 ALL = (

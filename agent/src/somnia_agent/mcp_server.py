@@ -7,10 +7,9 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from somnia_agent.api_client import SomniaClient, make_http
-from somnia_agent.config import load_config
+from somnia_agent.api import SomniaClient, make_http
+from somnia_agent.config import detect, load_config
 from somnia_agent.context_format import UNTRUSTED_NOTE, render_context
-from somnia_agent.git_info import detect
 from somnia_agent.spool import acked_seq, read_events, read_meta, sessions_root
 
 HTTP_TIMEOUT = 10.0

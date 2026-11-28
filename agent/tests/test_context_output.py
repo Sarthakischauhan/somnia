@@ -1,6 +1,6 @@
 import json
 
-from somnia_agent.api_models import ContextOut
+from somnia_agent.api import ContextOut
 from somnia_agent.context_format import (
     CLOSE_TAG,
     DISPUTED_MARK,
@@ -8,8 +8,8 @@ from somnia_agent.context_format import (
     UNTRUSTED_NOTE,
     render_context,
 )
-from somnia_agent.harness_payloads import Harness
-from somnia_agent.hook_output import context_stdout
+from somnia_agent.events import Harness
+from somnia_agent.hooks import context_stdout
 from tests.conftest import fixture_bytes, run_cli
 from tests.fake_api import INJECTION, FakeApi, context_body
 

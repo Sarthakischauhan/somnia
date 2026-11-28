@@ -1,15 +1,33 @@
-"""Per-device credentials. Only `smn_` device tokens are accepted, never a service key."""
+"""Agent device credentials, config and state paths, and Git working directory info."""
 
 import json
 import os
+import re
+import subprocess
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
-from somnia_agent.paths import config_path
-
 DEVICE_TOKEN_PREFIX = "smn_"
 DEFAULT_API_URL = "http://127.0.0.1:8000"
+GIT_TIMEOUT_SECONDS = 0.5
+_REMOTE = re.compile(r"(?:[:/])([^/:]+/[^/]+?)(?:\.git)?/?$")
+
+
+def config_path() -> Path:
+    override = os.environ.get("SOMNIA_AGENT_CONFIG")
+    if override:
+        return Path(override)
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "somnia" / "agent.json"
+
+
+def state_dir() -> Path:
+    override = os.environ.get("SOMNIA_AGENT_STATE")
+    if override:
+        return Path(override)
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(base) / "somnia"
 
 
 class AgentConfig(BaseModel):
@@ -51,3 +69,38 @@ def load_config(path: Path | None = None) -> AgentConfig | None:
     if not target.exists():
         return None
     return AgentConfig.model_validate(json.loads(target.read_text(encoding="utf-8")))
+
+
+class GitInfo(BaseModel):
+    repo: str
+    branch: str
+    ref: str | None
+
+
+def _git(cwd: Path, *args: str) -> str | None:
+    try:
+        done = subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = done.stdout.strip()
+    return out if done.returncode == 0 and out else None
+
+
+def repo_from_remote(url: str) -> str | None:
+    match = _REMOTE.search(url.strip())
+    return match.group(1) if match else None
+
+
+def detect(cwd: Path) -> GitInfo:
+    remote = _git(cwd, "remote", "get-url", "origin")
+    top = _git(cwd, "rev-parse", "--show-toplevel")
+    repo = (remote and repo_from_remote(remote)) or Path(top or cwd).name or "unknown"
+    branch = _git(cwd, "rev-parse", "--abbrev-ref", "HEAD") or "none"
+    return GitInfo(repo=repo, branch=branch, ref=_git(cwd, "rev-parse", "HEAD"))

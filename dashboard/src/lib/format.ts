@@ -14,6 +14,21 @@ export function formatDuration(start: string | null, end: string | null): string
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
+export function formatTokens(value: number): string {
+  return value.toLocaleString("en-US");
+}
+
+export function formatUsd(value: string | number): string {
+  const amount = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "$0.00";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: amount >= 0.01 ? 2 : 4,
+    maximumFractionDigits: amount >= 0.01 ? 2 : 6,
+  }).format(amount);
+}
+
 export function shortId(id: string): string {
   return id.slice(0, 8);
 }

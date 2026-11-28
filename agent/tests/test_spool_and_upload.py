@@ -5,11 +5,10 @@ from pathlib import Path
 
 import httpx
 
-from somnia_agent.api_client import SomniaClient
-from somnia_agent.event_mapping import EventBody
-from somnia_agent.harness_payloads import Harness, parse_hook
+from somnia_agent.api import SomniaClient
+from somnia_agent.events import EventBody, Harness, parse_hook
+from somnia_agent.hooks import spool_hook
 from somnia_agent.spool import append_events, read_events, session_dir, set_acked
-from somnia_agent.spool_hook import spool_hook
 from somnia_agent.uploader import CHECKPOINT_MARKER, CLOSE_MARKER, flush_all
 from tests.conftest import DEVICE_TOKEN, fixture_bytes, run_cli
 from tests.fake_api import FakeApi
@@ -60,6 +59,19 @@ def test_precompact_and_session_end_queue_checkpoint_and_close(fake_api: FakeApi
     assert not (directory / CHECKPOINT_MARKER).exists()
 
 
+def test_explicit_checkpoint_accepts_a_reason_without_closing_session(
+    agent_env: dict[str, str],
+) -> None:
+    done = run_cli(
+        ["checkpoint", "--harness", "codex", "--reason", "manual snapshot"],
+        fixture_bytes("codex", "session_end"),
+    )
+    assert done.returncode == 0
+    directory = session_dir("codex", "cx-sess-1")
+    assert (directory / CHECKPOINT_MARKER).read_text().splitlines()[1] == "manual snapshot"
+    assert not (directory / CLOSE_MARKER).exists()
+
+
 def test_flush_command_uploads_via_config(fake_api: FakeApi) -> None:
     run_cli(["ingest", "--harness", "grok"], fixture_bytes("grok", "post_tool_use"))
     done = run_cli(["flush"], b"")
@@ -104,7 +116,7 @@ def test_open_session_checkpoint_captures_last_tool(fake_api: FakeApi) -> None:
 def test_checkpoint_enqueued_during_upload_is_kept(
     fake_api: FakeApi,
 ) -> None:
-    from somnia_agent.api_models import CheckpointIn
+    from somnia_agent.api import CheckpointIn
 
     args = ["ingest", "--harness", "codex"]
     run_cli(args, fixture_bytes("codex", "user_prompt_submit"))
