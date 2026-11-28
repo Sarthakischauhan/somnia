@@ -13,6 +13,7 @@ from somnia.ingestion.event_models import EVENT_ADAPTER
 from somnia.ingestion.event_text import render_event
 from somnia.ingestion.redaction import redact_secrets
 from somnia.memory.models import Embedder
+from somnia.memory.usage import flush_usage
 
 
 class _PendingEvent(BaseModel):
@@ -56,6 +57,9 @@ def process_pending_events(
             for ord_, piece in enumerate(chunk_text(redacted.text, max_chars, overlap)):
                 pending.append(_PendingChunk(event, ord_, piece, redacted.count))
         vectors = embedder.embed([p.content for p in pending])
+        owners = {chunk.event.user_id for chunk in pending}
+        if len(owners) == 1:
+            flush_usage(conn, next(iter(owners)), embedder, None)
         with conn.cursor() as cur:
             cur.executemany(
                 "insert into public.chunks"

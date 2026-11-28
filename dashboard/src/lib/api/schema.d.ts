@@ -89,6 +89,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Devices */
+        get: operations["get_devices_v1_devices_get"];
+        put?: never;
+        /** Post Device */
+        post: operations["post_device_v1_devices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/devices/{device_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Revoke Device */
+        post: operations["post_revoke_device_v1_devices__device_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/dream-runs": {
         parameters: {
             query?: never;
@@ -133,6 +168,23 @@ export interface paths {
         };
         /** Get Memories */
         get: operations["get_memories_v1_memories_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/memories/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Memory Overview */
+        get: operations["get_memory_overview_v1_memories_overview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -347,6 +399,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Usage */
+        get: operations["get_usage_v1_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -498,6 +567,34 @@ export interface components {
             /** Type */
             type: ("fact" | "decision" | "convention" | "gotcha" | "todo") | null;
         };
+        /** CreatedDevice */
+        CreatedDevice: {
+            device: components["schemas"]["DeviceRecord"];
+            /** Token */
+            token: string;
+        };
+        /** DeviceName */
+        DeviceName: {
+            /** Name */
+            name: string;
+        };
+        /** DeviceRecord */
+        DeviceRecord: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
         /** DreamRunRecord */
         DreamRunRecord: {
             /** Checkpoints Created */
@@ -637,6 +734,12 @@ export interface components {
             superseded_by_chain: components["schemas"]["MemoryRecord"][];
             /** Supersedes */
             supersedes: components["schemas"]["MemoryRecord"][];
+        };
+        /** MemoryOverview */
+        MemoryOverview: {
+            memories: components["schemas"]["MemoryPage"];
+            /** Repos */
+            repos: components["schemas"]["RepoBranch"][];
         };
         /** MemoryPage */
         MemoryPage: {
@@ -999,6 +1102,50 @@ export interface components {
             /** Output */
             output?: string | null;
         };
+        /** UsageModelSummary */
+        UsageModelSummary: {
+            /** Cache Read Tokens */
+            cache_read_tokens: number;
+            /** Cache Write Tokens */
+            cache_write_tokens: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Model */
+            model: string;
+            /**
+             * Operation
+             * @enum {string}
+             */
+            operation: "chat" | "embedding";
+            /** Output Tokens */
+            output_tokens: number;
+            /** Provider */
+            provider: string;
+            /** Reasoning Tokens */
+            reasoning_tokens: number;
+            /** Requests */
+            requests: number;
+        };
+        /** UsageSummary */
+        UsageSummary: {
+            /** Cost Usd */
+            cost_usd: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Models */
+            models: components["schemas"]["UsageModelSummary"][];
+            /** Output Tokens */
+            output_tokens: number;
+            /** Requests */
+            requests: number;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1184,6 +1331,105 @@ export interface operations {
             };
         };
     };
+    get_devices_v1_devices_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceRecord"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_device_v1_devices_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceName"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedDevice"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_revoke_device_v1_devices__device_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                device_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_dream_runs_v1_dream_runs_get: {
         parameters: {
             query?: {
@@ -1307,6 +1553,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_memory_overview_v1_memories_overview_get: {
+        parameters: {
+            query?: {
+                repo?: string | null;
+                branch?: string | null;
+                type?: ("fact" | "decision" | "convention" | "gotcha" | "todo") | null;
+                scope?: ("global" | "repo" | "branch") | null;
+                q?: string | null;
+                include_superseded?: boolean;
+                include_archived?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemoryOverview"];
                 };
             };
             /** @description Validation Error */
@@ -1788,6 +2075,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_usage_v1_usage_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummary"];
                 };
             };
             /** @description Validation Error */

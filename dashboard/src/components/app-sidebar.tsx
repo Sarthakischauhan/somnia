@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, FolderGit2, GitCompareArrows, History, Moon as DreamIcon } from "lucide-react";
+import { Brain, ChartColumn, FolderGit2, GitCompareArrows, History, Laptop, Moon as DreamIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -24,7 +24,9 @@ const NAV = [
   { href: "/memories", label: "Memories", icon: Brain },
   { href: "/conflicts", label: "Conflicts", icon: GitCompareArrows },
   { href: "/dreaming", label: "Dreaming", icon: DreamIcon },
+  { href: "/usage", label: "Usage", icon: ChartColumn },
   { href: "/sessions", label: "Session handoffs", icon: History },
+  { href: "/devices", label: "Devices", icon: Laptop },
 ] as const;
 
 export function AppSidebar() {

@@ -98,3 +98,19 @@ def test_dashboard_and_devices_share_only_their_owners_data(
             ).status_code
             == 401
         )
+        created = client.post("/v1/devices", headers=alice_jwt, json={"name": " laptop "})
+        assert created.status_code == 201, created.text
+        minted = created.json()
+        assert minted["device"]["name"] == "laptop"
+        assert minted["token"].startswith("smn_")
+        assert "token_hash" not in created.text
+        fresh = {"Authorization": f"Bearer {minted['token']}"}
+        assert client.get("/v1/memories", headers=fresh).json()["items"] == first
+        listed = client.get("/v1/devices", headers=alice_jwt).json()
+        assert sorted(item["name"] for item in listed) == ["laptop", "laptop"]
+        assert client.get("/v1/devices", headers=bob_jwt).json() == []
+        revoked = client.post(f"/v1/devices/{minted['device']['id']}/revoke", headers=alice_jwt)
+        assert revoked.status_code == 200
+        assert revoked.json()["revoked_at"] is not None
+        assert client.get("/v1/memories", headers=fresh).status_code == 401
+        assert client.post("/v1/devices", headers=alice_jwt, json={"name": " "}).status_code == 422

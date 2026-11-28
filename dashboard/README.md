@@ -13,11 +13,11 @@ From `dashboard/`, copy `.env.example` to `.env.local` if you don't have one, th
 
 | Variable | Value |
 | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | URL of the Supabase project used by the API |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key from that project; not a secret or service-role key |
-| `SOMNIA_API_URL` | Server-only base URL of the Somnia FastAPI service, without `/v1`; use HTTPS for deployed environments |
+| `SUPABASE_URL` | Server-only URL of the Supabase project used for GitHub sign-in |
+| `SUPABASE_PUBLISHABLE_KEY` | Server-only publishable key from that project; not a secret or service-role key |
+| `SOMNIA_API_URL` | Server-only base URL of the Somnia FastAPI service, without `/v1`; use `http://127.0.0.1:8000` locally |
 
-Use Node.js 22 or later for the dashboard runtime. Run `npm ci` and `npm run dev`, then open `http://localhost:3000`. For Vercel, set the project root directory to `dashboard`, select Node.js 22 or later, set the three variables for each intended environment, and redeploy when changing `NEXT_PUBLIC_` values. The API must be reachable from Vercel (not `localhost`).
+Use Node.js 22 or later for the dashboard runtime. Run `npm ci` and `npm run dev`, then open `http://localhost:3000`. All three variables are server-only and are not bundled into browser code. For local development, run the FastAPI service on `127.0.0.1:8000` and keep `SOMNIA_API_URL=http://127.0.0.1:8000`. For Vercel, set the project root directory to `dashboard`, select Node.js 22 or later, and set the same three variables for each intended environment. The deployed API must be reachable from Vercel (not `localhost`).
 
 The app can build without these values. `/login` starts GitHub sign-in; `/auth/error` shows recovery steps for an unconfigured deployment, cancelled or failed OAuth, service outages, rejected sessions, denied access, and failed sign-out. For callback failures, retry from `/login` in the same browser and check the exact Supabase redirect allowlist. If the API rejects a signed-in user, check that it trusts the same project and that the account has access.
 

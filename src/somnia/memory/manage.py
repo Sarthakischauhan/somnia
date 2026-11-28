@@ -50,6 +50,11 @@ class MemoryPage(BaseModel):
     total: int
 
 
+class MemoryOverview(BaseModel):
+    memories: MemoryPage
+    repos: list["RepoBranch"]
+
+
 class MemoryDetail(BaseModel):
     memory: MemoryRecord
     sources: list[SessionRecord]
@@ -71,6 +76,10 @@ _FILTER_SQL = (
     " and (%(sup)s or superseded_by is null)"
     " and (%(arch)s or archived_at is null)"
 )
+
+
+def memory_overview(conn: Conn, f: MemoryFilter) -> MemoryOverview:
+    return MemoryOverview(memories=list_memories(conn, f), repos=list_repo_branches(conn))
 
 
 def list_memories(conn: Conn, f: MemoryFilter) -> MemoryPage:

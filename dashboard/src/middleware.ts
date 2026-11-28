@@ -28,11 +28,8 @@ export async function middleware(request: NextRequest) {
       },
     });
 
-    try {
-      await supabase.auth.getClaims();
-    } catch {
-      // Rendering and API access still require a separately verified session.
-    }
+    // Cookie refresh only needs the local session. Page rendering verifies the user.
+    await supabase.auth.getSession();
   }
 
   response.headers.set("Cache-Control", "private, no-store");
@@ -41,5 +38,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   runtime: "nodejs",
-  matcher: ["/login", "/auth/error", "/memories/:path*", "/project/:path*", "/conflicts/:path*", "/dreaming/:path*", "/sessions/:path*"],
+  matcher: [
+    "/login",
+    "/auth/error",
+    "/memories/:path*",
+    "/project/:path*",
+    "/conflicts/:path*",
+    "/dreaming/:path*",
+    "/sessions/:path*",
+    "/devices/:path*",
+  ],
 };

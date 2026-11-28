@@ -396,8 +396,8 @@ uv run somnia-admin create-device --user-id <auth.users id> --name laptop   # pr
    Gemini model configuration across both services. Keep the embedding model identical
    across the services. Re-embed existing vectors before switching embedding models.
 4. Configure GitHub OAuth and its callback as described in the [dashboard setup](dashboard/README.md).
-   Set `SOMNIA_API_URL` to the API's HTTPS URL and configure the two
-   `NEXT_PUBLIC_SUPABASE_*` settings on the dashboard service. Set its URL as an allowed
+   Set `SOMNIA_API_URL` to the API's HTTPS URL and configure the server-only
+   `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` settings on the dashboard service. Set its URL as an allowed
    Supabase redirect. The dashboard can also be deployed from `dashboard/` on Vercel.
 5. Provision device tokens with `somnia-admin create-device` from a trusted operator
    environment, then use `somnia-agent login --api-url https://YOUR-API.onrender.com`.

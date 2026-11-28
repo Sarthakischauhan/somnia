@@ -38,6 +38,19 @@ export async function runDreamNow(): Promise<void> {
   revalidatePath("/dreaming");
 }
 
+export async function createDevice(name: string): Promise<string> {
+  const api = await somnia();
+  const created = unwrap(await api.POST("/v1/devices", { body: { name } }));
+  revalidatePath("/devices");
+  return created.token;
+}
+
+export async function revokeDevice(deviceId: string): Promise<void> {
+  const api = await somnia();
+  unwrap(await api.POST("/v1/devices/{device_id}/revoke", { params: { path: { device_id: deviceId } } }));
+  revalidatePath("/devices");
+}
+
 export async function resolveConflict(conflictId: string, resolution: Resolution): Promise<void> {
   const api = await somnia();
   unwrap(

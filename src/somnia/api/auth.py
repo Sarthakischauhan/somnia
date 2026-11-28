@@ -2,6 +2,7 @@
 
 import hashlib
 import secrets
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -46,14 +47,34 @@ class _AuthUser(BaseModel):
     is_anonymous: bool = False
 
 
+_DASHBOARD_AUTH_TTL_SECONDS = 30.0
+_dashboard_users: dict[str, tuple[float, UUID]] = {}
+
+
 def resolve_dashboard_user(client: httpx.Client, token: str) -> UUID:
+    now = time.monotonic()
+    cached = _dashboard_users.get(token)
+    if cached is not None and cached[0] > now:
+        return cached[1]
     # Supabase Auth verifies the token; never derive identity from unverified claims.
     try:
         response = client.get("user", headers={"Authorization": f"Bearer {token}"})
     except httpx.RequestError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "auth unavailable") from exc
-    if response.status_code in (400, 401, 403):
+    if response.status_code in (400, 401):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid dashboard token")
+    if response.status_code == 403:
+        message = "invalid dashboard token"
+        try:
+            payload = response.json()
+            code = str(payload.get("error_code", ""))
+            description = str(payload.get("msg", ""))[:160]
+        except ValueError:
+            code = ""
+            description = ""
+        if code not in {"bad_jwt", "session_expired", "session_not_found"} or description:
+            message = f"dashboard token rejected ({code or 'forbidden'}): {description}"
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, message)
     if response.status_code != 200:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "auth unavailable")
     try:
@@ -62,6 +83,11 @@ def resolve_dashboard_user(client: httpx.Client, token: str) -> UUID:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "auth unavailable") from exc
     if user.is_anonymous:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "sign-in required")
+    _dashboard_users[token] = (now + _DASHBOARD_AUTH_TTL_SECONDS, user.id)
+    if len(_dashboard_users) > 32:
+        expired = [key for key, (expires, _) in _dashboard_users.items() if expires <= now]
+        for key in expired:
+            del _dashboard_users[key]
     return user.id
 
 

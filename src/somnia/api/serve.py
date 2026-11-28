@@ -18,6 +18,8 @@ def main() -> None:
         raise SystemExit("PORT must be an integer between 1 and 65535") from None
 
     settings = ApiSettings()  # values come from the environment
+    if settings.supabase_url is None or settings.supabase_publishable_key is None:
+        raise SystemExit("SOMNIA_SUPABASE_URL and SOMNIA_SUPABASE_PUBLISHABLE_KEY are required")
     provider = ProviderSettings()
     host = os.environ.get("SOMNIA_HOST", "127.0.0.1")
     with embedding_client(provider) as client:

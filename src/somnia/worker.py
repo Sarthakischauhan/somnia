@@ -21,9 +21,23 @@ from somnia.memory.triggers import enqueue_chunk_thresholds, enqueue_idle_sessio
 log = logging.getLogger("somnia.worker")
 
 
+_COST_LIMIT_USD = 5
+
+
+def _cost_limit_reached(conn: Conn) -> bool:
+    row = conn.execute("select coalesce(sum(cost_usd), 0) from public.model_usage").fetchone()
+    spent = float(row[0] if row else 0)
+    if spent >= _COST_LIMIT_USD:
+        log.error("cost limit reached: $%.4f >= $%.2f", spent, _COST_LIMIT_USD)
+        return True
+    return False
+
+
 def _tick(
     conn: Conn, settings: WorkerSettings, llm: Llm, embedder: Embedder, dream_due: bool
 ) -> int:
+    if _cost_limit_reached(conn):
+        return 0
     ingested = process_pending_events(
         conn,
         embedder,
@@ -33,16 +47,15 @@ def _tick(
     )
     enqueue_idle_sessions(conn, datetime.now(UTC), settings.idle_minutes)
     enqueue_chunk_thresholds(conn, settings.chunk_threshold)
-    # Keep the claim locked until results or retry state have committed.
+    # Claim briefly, then run without holding the row lock through model calls.
     with conn.transaction():
         requested = claim_requested_run(conn)
-        if requested is not None:
-            try:
-                with conn.transaction():
-                    run_dream(conn, llm, embedder, settings, datetime.now(UTC), run_id=requested)
-            except Exception as exc:
-                retry_run(conn, requested, type(exc).__name__)
-                log.warning("dream %s failed (%s)", requested, type(exc).__name__)
+    if requested is not None:
+        try:
+            run_dream(conn, llm, embedder, settings, datetime.now(UTC), run_id=requested)
+        except Exception as exc:
+            retry_run(conn, requested, type(exc).__name__)
+            log.warning("dream %s failed (%s)", requested, type(exc).__name__)
     if requested is None and dream_due:
         run_dream(conn, llm, embedder, settings, datetime.now(UTC))
     return ingested
@@ -80,6 +93,8 @@ def main() -> None:
                                 return
                             continue
                         ingested = _tick(conn, settings, llm, embedder, dream_due=due)
+                        if _cost_limit_reached(conn):
+                            return
                         if due:
                             last_dream = time.monotonic()
                         if not ingested:

@@ -1,4 +1,8 @@
-import { Button } from "@/components/ui/button";
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -8,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MEMORY_SCOPES, MEMORY_TYPES, type RepoBranch } from "@/lib/api/client";
+import { MEMORY_SCOPES, MEMORY_TYPES, type RepoBranch } from "@/lib/api/types";
 
 export interface MemoryFilterValues {
   q?: string;
@@ -20,23 +24,26 @@ export interface MemoryFilterValues {
   include_archived?: boolean;
 }
 
-const ANY = "__any__";
+export const ANY_FILTER = "__any__";
 
 function FilterSelect(props: {
-  name: string;
   label: string;
   value: string | undefined;
   options: readonly string[];
+  onChange: (value: string | undefined) => void;
 }) {
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={props.name}>{props.label}</Label>
-      <Select name={props.name} defaultValue={props.value}>
-        <SelectTrigger id={props.name} className="w-32">
+      <Label>{props.label}</Label>
+      <Select
+        value={props.value ?? ANY_FILTER}
+        onValueChange={(value) => props.onChange(!value || value === ANY_FILTER ? undefined : value)}
+      >
+        <SelectTrigger className="w-36">
           <SelectValue placeholder="Any" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ANY}>Any</SelectItem>
+          <SelectItem value={ANY_FILTER}>Any</SelectItem>
           {props.options.map((option) => (
             <SelectItem key={option} value={option}>
               {option}
@@ -48,38 +55,52 @@ function FilterSelect(props: {
   );
 }
 
-export function MemoryFilters({
-  values,
-  repos,
-}: {
-  values: MemoryFilterValues;
-  repos: RepoBranch[];
-}) {
-  const repoNames = [...new Set(repos.map((r) => r.repo))];
-  const branches = [...new Set(repos.map((r) => r.branch))];
+export function MemoryFilters({ values, repos }: { values: MemoryFilterValues; repos: RepoBranch[] }) {
+  const router = useRouter();
+  const [query, setQuery] = useState(values.q ?? "");
+  const repoNames = [...new Set(repos.map((repo) => repo.repo))];
+  const branches = [...new Set(repos.filter((repo) => !values.repo || repo.repo === values.repo).map((repo) => repo.branch))];
+
+  function apply(next: MemoryFilterValues) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(next)) {
+      if (typeof value === "string" && value) params.set(key, value);
+      if (value === true) params.set(key, "true");
+    }
+    const queryString = params.toString();
+    router.replace(queryString ? `/memories?${queryString}` : "/memories");
+  }
+
+  const current = useRef(values);
+  current.current = values;
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      const trimmed = query.trim();
+      if ((current.current.q ?? "") !== trimmed) apply({ ...current.current, q: trimmed || undefined });
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [query]);
+
   return (
-    <form method="get" className="flex flex-wrap items-end gap-3">
+    <div className="flex flex-wrap items-end gap-3">
       <div className="grid gap-1.5">
-        <Label htmlFor="q">Search</Label>
-        <Input id="q" name="q" defaultValue={values.q} placeholder="Search content" className="w-52" />
+        <Label htmlFor="memory-search">Search</Label>
+        <Input id="memory-search" value={query} placeholder="Search content" className="w-64" onChange={(event) => setQuery(event.target.value)} />
       </div>
-      <FilterSelect name="repo" label="Repo" value={values.repo} options={repoNames} />
-      <FilterSelect name="branch" label="Branch" value={values.branch} options={branches} />
-      <FilterSelect name="type" label="Type" value={values.type} options={MEMORY_TYPES} />
-      <FilterSelect name="scope" label="Scope" value={values.scope} options={MEMORY_SCOPES} />
-      <label className="flex h-9 items-center gap-2 text-sm">
-        <input type="checkbox" name="include_superseded" value="true" defaultChecked={values.include_superseded} />
+      <FilterSelect label="Repo" value={values.repo} options={repoNames} onChange={(repo) => apply({ ...values, repo, branch: undefined })} />
+      <FilterSelect label="Branch" value={values.branch} options={branches} onChange={(branch) => apply({ ...values, branch })} />
+      <FilterSelect label="Type" value={values.type} options={MEMORY_TYPES} onChange={(type) => apply({ ...values, type })} />
+      <FilterSelect label="Scope" value={values.scope} options={MEMORY_SCOPES} onChange={(scope) => apply({ ...values, scope })} />
+      <label className="flex h-8 items-center gap-2 text-sm">
+        <input type="checkbox" checked={values.include_superseded ?? false} onChange={(event) => apply({ ...values, include_superseded: event.target.checked })} />
         Superseded
       </label>
-      <label className="flex h-9 items-center gap-2 text-sm">
-        <input type="checkbox" name="include_archived" value="true" defaultChecked={values.include_archived} />
+      <label className="flex h-8 items-center gap-2 text-sm">
+        <input type="checkbox" checked={values.include_archived ?? false} onChange={(event) => apply({ ...values, include_archived: event.target.checked })} />
         Archived
       </label>
-      <Button type="submit">Apply</Button>
-    </form>
+    </div>
   );
 }
 
-export function cleanFilter(value: string | undefined): string | undefined {
-  return value && value !== ANY ? value : undefined;
-}
+
