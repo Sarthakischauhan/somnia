@@ -8,8 +8,14 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const dashboardOrigin =
+  process.env.SOMNIA_DASHBOARD_URL ||
+  process.env.RENDER_EXTERNAL_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "somnia admin",
+  metadataBase: new URL(dashboardOrigin),
+  title: "Somnia | Memory dashboard",
   description: "Shared memory for coding agents",
 };
 

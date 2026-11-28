@@ -16,6 +16,7 @@ From `dashboard/`, copy `.env.example` to `.env.local` if you don't have one, th
 | `NEXT_PUBLIC_SUPABASE_URL` | URL of the Supabase project used by the API |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key from that project; not a secret or service-role key |
 | `SOMNIA_API_URL` | Server-only base URL of the Somnia FastAPI service, without `/v1`; use HTTPS for deployed environments |
+| `SOMNIA_DASHBOARD_URL` | Optional public dashboard origin for link previews. Set it at build time for custom domains or self-hosted deployments. Defaults to the Render or Vercel URL when available and localhost otherwise. |
 
 Use Node.js 22 or later for the dashboard runtime. Run `npm ci` and `npm run dev`, then open `http://localhost:3000`. For Vercel, set the project root directory to `dashboard`, select Node.js 22 or later, set the three variables for each intended environment, and redeploy when changing `NEXT_PUBLIC_` values. The API must be reachable from Vercel (not `localhost`).
 
